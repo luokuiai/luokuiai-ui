@@ -1,0 +1,27 @@
+{
+  "name": "luokui-ui-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "luokui-ui-assets public --overwrite && node scripts/catalog.mjs",
+    "predev": "npm run setup",
+    "dev": "next dev --hostname 127.0.0.1 --port 3214",
+    "prebuild": "npm run setup",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1 --port 3214",
+    "typecheck": "npm run setup && tsc --noEmit"
+  },
+  "dependencies": {
+    "@luokui/ui": "file:..",
+    "@remixicon/react": "^4.9.0",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "5.9.3"
+  }
+}

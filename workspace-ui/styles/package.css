@@ -1,3 +1,8 @@
 @import './globals.css';
 @import './workspace.css';
+@import '@fontsource-variable/inter';
 @source '../components';
+
+:root {
+  --font-inter: 'Inter Variable';
+}

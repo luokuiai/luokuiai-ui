@@ -1,3 +1,8 @@
 node_modules/
 dist/
 *.tgz
+demo/.next/
+demo/.generated/
+demo/public/
+demo/next-env.d.ts
+*.tsbuildinfo
