@@ -1,0 +1,18 @@
+body {
+  font-family: var(--font-inter), "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.workspace-template {
+  --template-preview-height: calc(100dvh - 3.5rem);
+}
+
+.workspace-template > div > .workspace-multi-agent {
+  height: var(--template-preview-height);
+}
+
+.workspace-orbit {
+  background:
+    repeating-radial-gradient(ellipse at 56% 54%, transparent 0 34px, color-mix(in oklab, var(--color-accent-400) 25%, transparent) 35px 36px, transparent 37px 51px),
+    radial-gradient(ellipse at 56% 54%, var(--color-accent-900), transparent 70%);
+  mask-image: linear-gradient(to right, transparent, black 18%, black 82%, transparent);
+}
