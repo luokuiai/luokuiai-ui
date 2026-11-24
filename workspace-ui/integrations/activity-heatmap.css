@@ -1,0 +1,65 @@
+.lk-heatmap {
+  --lk-heatmap-cell-min: 9px;
+  --lk-heatmap-cell-max: 16px;
+  --lk-heatmap-gap: 3px;
+  overflow-x: auto;
+  padding-block: 2px;
+}
+
+.lk-heatmap__layout {
+  display: grid;
+  grid-template-columns: minmax(min-content, 1fr);
+  row-gap: 8px;
+}
+
+.lk-heatmap__layout[data-row-labels] {
+  grid-template-columns: max-content minmax(min-content, 1fr);
+  column-gap: 12px;
+}
+
+.lk-heatmap__column-labels,
+.lk-heatmap__row-labels,
+.lk-heatmap__grid {
+  display: grid;
+  gap: var(--lk-heatmap-gap);
+}
+
+.lk-heatmap__column-labels,
+.lk-heatmap__row-labels {
+  color: var(--lk-heatmap-label, var(--lk-muted, inherit));
+  font-size: 0.75rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.lk-heatmap__column-labels,
+.lk-heatmap__grid { grid-column: -2 / -1; }
+.lk-heatmap__column-labels { grid-row: 1; }
+.lk-heatmap__row-labels { grid-area: 2 / 1; align-items: center; }
+.lk-heatmap__grid { grid-row: 2; margin: 0; padding: 0; list-style: none; }
+.lk-heatmap__grid > li { min-inline-size: 0; }
+
+.lk-heatmap__cell {
+  position: relative;
+  display: block;
+  inline-size: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: var(--lk-heatmap-empty, var(--lk-surface-hover, #f2f4f7));
+}
+
+.lk-heatmap__cell:hover,
+.lk-heatmap__cell:focus-visible {
+  outline: 1px solid var(--lk-heatmap-focus, var(--lk-focus, currentColor));
+  outline-offset: 1px;
+}
+
+.lk-heatmap__cell[data-heat-level='1'] { background: rgb(var(--lk-heatmap-accent, 124 58 237) / 18%); }
+.lk-heatmap__cell[data-heat-level='2'] { background: rgb(var(--lk-heatmap-accent, 124 58 237) / 35%); }
+.lk-heatmap__cell[data-heat-level='3'] { background: rgb(var(--lk-heatmap-accent, 124 58 237) / 55%); }
+.lk-heatmap__cell[data-heat-level='4'] { background: rgb(var(--lk-heatmap-accent, 124 58 237) / 75%); }
+.lk-heatmap__cell[data-heat-level='5'] { background: rgb(var(--lk-heatmap-accent, 124 58 237)); }
+.lk-heatmap__cell[data-future],
+.lk-heatmap__cell[data-outside] { opacity: 0.5; }

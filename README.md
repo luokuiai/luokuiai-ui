@@ -1,13 +1,18 @@
 # LUOKUI UI
 
-`@luokui/ui` 1.x 收录 `LUOKUI-AI/components` 的基础组件、应用组件、设计基础和工作台组件。组件按原模块导出，保留原有属性、泛型、受控和非受控接口、事件回调与样式。1.x 替换了 0.x 的独立重写版本，旧的 `@luokui/ui/chat`、`/dashboard` 和 `/presentation` 等入口已退役。
+`@luokui/ui` 1.x 收录 `LUOKUI-AI/components` 的基础组件、应用组件、设计基础和工作台组件。组件按原模块导出，保留原有属性、泛型、受控和非受控接口、事件回调与样式。
+
+## 1.1.0 变更记录
+
+- `@luokui/ui/chat` 提供可由宿主组合的聊天布局。消息、会话、请求、输入组件和权限由宿主管理。毕昇聊天样式单独从 `@luokui/ui/chat-bisheng.css` 导入。
+- `@luokui/ui/activity-heatmap` 接收宿主提供的行列、数据及格子渲染函数。搭配 `@luokui/ui/activity-heatmap.css` 使用。
+- `@luokui/ui/dashboard` 和 `@luokui/ui/presentation` 提供看板布局插槽、图表容器和原生表格构件。它们可与 1.x 源组件一起从同一依赖导入。
 
 ## 1.0.0 变更记录
 
 - 以 `LUOKUI-AI/components` 为组件来源。常用组件从 `@luokui/ui` 导入，其余组件通过 `@luokui/ui/components/*` 按原模块路径导入。
 - `@luokui/ui/styles.css` 提供编译后的主题和组件样式。包内同时交付 CSS Modules、Inter 字体和组件资源。宿主可用 `npx luokui-ui-assets public` 准备模板依赖的图片。
 - 新增 `demo/`，支持组件搜索、交互预览、可复制代码和从 TypeScript 源码生成的 API 文档。
-- 从 0.x 升级时，将旧的聊天、看板和展示组件导入替换为对应的源组件入口，并按新版组件的 Props 调整调用，详见下方接入示例。
 
 ## 在应用中使用
 

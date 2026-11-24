@@ -24,7 +24,9 @@ test('package entry points expose original source modules and built styles', asy
   ]) {
     await access(new URL(import.meta.resolve(`@luokui/ui/components/${path}`)))
   }
-  assert.throws(() => import.meta.resolve('@luokui/ui/chat'), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' })
+  for (const name of ['chat', 'chat-bisheng.css', 'dashboard', 'presentation', 'activity-heatmap', 'activity-heatmap.css']) {
+    await access(new URL(import.meta.resolve(`@luokui/ui/${name}`)))
+  }
 })
 
 test('asset copying preserves host files and supports explicit updates', async () => {

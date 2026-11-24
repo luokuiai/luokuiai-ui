@@ -1,11 +1,11 @@
 {
   "name": "@luokui/ui",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "The React components, styles and assets from LUOKUI-AI.",
   "license": "UNLICENSED",
-  "files": ["dist/workspace.css", "dist/files", "workspace-ui", "scripts/copy-assets.mjs"],
+  "files": ["dist/workspace.css", "dist/files", "dist/integrations", "workspace-ui", "scripts/copy-assets.mjs"],
   "sideEffects": ["**/*.css"],
   "exports": {
     ".": "./workspace-ui/index.ts",
@@ -15,6 +15,13 @@
     "./styles.css": "./dist/workspace.css",
     "./workspace.css": "./dist/workspace.css",
     "./analytics": "./workspace-ui/lib/analytics.ts",
+    "./chat": { "types": "./dist/integrations/chat.d.ts", "default": "./dist/integrations/chat.js" },
+    "./chat-bisheng.css": "./dist/integrations/chat-bisheng.css",
+    "./activity-heatmap": { "types": "./dist/integrations/activity-heatmap.d.ts", "default": "./dist/integrations/activity-heatmap.js" },
+    "./activity-heatmap.css": "./dist/integrations/activity-heatmap.css",
+    "./dashboard": { "types": "./dist/integrations/dashboard.d.ts", "default": "./dist/integrations/dashboard.js" },
+    "./icons": { "types": "./dist/integrations/icons.d.ts", "default": "./dist/integrations/icons.js" },
+    "./presentation": { "types": "./dist/integrations/presentation.d.ts", "default": "./dist/integrations/presentation.js" },
     "./package.json": "./package.json"
   },
   "bin": { "luokui-ui-assets": "./scripts/copy-assets.mjs" },
@@ -22,7 +29,7 @@
   "engines": { "node": ">=22" },
   "workspaces": ["demo"],
   "scripts": {
-    "build": "node scripts/build-styles.mjs",
+    "build": "tsc -p tsconfig.integrations.json && node scripts/build-styles.mjs",
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.workspace.json",
     "typecheck:workspace": "npm run typecheck",

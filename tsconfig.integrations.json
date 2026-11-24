@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.workspace.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "declaration": true,
+    "rootDir": "workspace-ui/integrations",
+    "outDir": "dist/integrations"
+  },
+  "include": ["workspace-ui/integrations/*.ts", "workspace-ui/integrations/*.tsx"]
+}
