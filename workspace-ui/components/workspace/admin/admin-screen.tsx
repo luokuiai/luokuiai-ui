@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntentLink as Link } from "../intent-link";
 import { WorkspaceFrame } from "../chrome";
 import { LibraryContent, LibraryHeading } from "../library-layout";
 import { cx } from "../../../utils/cx";

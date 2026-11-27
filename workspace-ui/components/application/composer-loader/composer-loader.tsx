@@ -180,6 +180,7 @@ export function ComposerLoader({
           style={{
             opacity: opacity / copies,
             animation: `bui-composer-loader-dash ${speed}s linear ${(phase * speed) / 100}s infinite ${direction}`,
+            animationPlayState: active ? "running" : "paused",
           }}
         />
       );

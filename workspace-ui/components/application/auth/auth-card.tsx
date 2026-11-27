@@ -119,7 +119,7 @@ const COPY = {
   },
   signup: {
     title: "Create your account",
-    description: "Start building with BoardUI in a couple of minutes.",
+    description: "Create an account to get started.",
     cta: "Create account",
     switchLead: "Already have an account?",
     switchAction: "Sign in",

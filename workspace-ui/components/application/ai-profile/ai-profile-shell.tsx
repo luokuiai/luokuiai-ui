@@ -1,11 +1,12 @@
 "use client";
 
+import { SlidingMobilePanel } from "../dashboard/mobile-navigation";
+
 import { useTemplateCopy } from "../../foundations/template-copy/template-copy";
 
-import { useDirection } from "../../foundations/direction/direction";
 import { useState } from "react";
 import { RiMenuLine } from "@remixicon/react";
-import { motion } from "motion/react";
+import navMotion from "../../../styles/sidebar-motion.module.css";
 import { AgentsChartCard } from "./agents-chart-card";
 import { AiProfileCard } from "./ai-profile-card";
 import { TokensChartCard } from "./tokens-chart-card";
@@ -22,7 +23,6 @@ import { cx } from "../../../utils/cx";
  */
 export function AiProfileShell({ contained = false }: { contained?: boolean } = {}) {
   const localize = useTemplateCopy();
-  const direction = useDirection();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return localize((
@@ -48,34 +48,31 @@ export function AiProfileShell({ contained = false }: { contained?: boolean } = 
       </div>
 
       {/* The mobile sidebar stays beneath the page while its contents reveal. */}
-      <div
+      <SlidingMobilePanel
         className={cx(
           "start-0 z-10 flex w-[272px] py-3 ps-[6px] lg:hidden",
           contained
             ? "absolute top-0 h-[var(--template-preview-height)]"
             : "fixed inset-y-0",
         )}
-        aria-hidden={!mobileOpen}
+        isOpen={mobileOpen}
+        onOpenChange={setMobileOpen}
       >
-        <motion.div
-          initial={false}
-          animate={{ scale: mobileOpen ? 1 : 0.94, opacity: mobileOpen ? 1 : 0 }}
-          transition={{ duration: 0.325, ease: [0.42, 0, 0.58, 1] }}
+        <div
+          data-nav-open={mobileOpen || undefined}
           className={cx(
-            "h-full w-[260px] origin-left rtl:origin-right will-change-transform",
+            navMotion.pushSidebar, "h-full w-[260px] origin-left rtl:origin-right",
             mobileOpen ? "pointer-events-auto" : "pointer-events-none",
           )}
         >
           <DashboardSidebar mobile flat selected="profile" items={starterNav("")} showThemeToggle={false} onClose={() => setMobileOpen(false)} />
-        </motion.div>
-      </div>
+        </div>
+      </SlidingMobilePanel>
 
-      <motion.main
-        initial={false}
-        animate={{ x: mobileOpen ? (direction === "rtl" ? -272 : 272) : 0, borderRadius: mobileOpen ? 32 : 0 }}
-        transition={{ duration: 0.325, ease: [0.42, 0, 0.58, 1] }}
+      <main
+        data-nav-open={mobileOpen || undefined}
         className={cx(
-          "relative z-20 flex min-w-0 flex-1 justify-center overflow-x-hidden overflow-y-auto bg-background-full p-3 will-change-transform sm:p-6 lg:z-0 lg:!transform-none lg:!rounded-none",
+          navMotion.pushContent, "relative z-20 flex min-w-0 flex-1 justify-center overflow-x-hidden overflow-y-auto bg-background-full p-3 sm:p-6 lg:z-0",
           // Contained, the frame around this is a fixed window: the main
           // column keeps its own scrollbar so the rail beside it stays put,
           // instead of the whole shell scrolling and dragging the rail off
@@ -83,16 +80,15 @@ export function AiProfileShell({ contained = false }: { contained?: boolean } = 
           !contained && "lg:overflow-visible",
         )}
       >
-        <motion.button
+        <button
           type="button"
           aria-label="关闭导航"
-          tabIndex={mobileOpen ? 0 : -1}
+          tabIndex={-1}
+          aria-hidden={!mobileOpen}
           onClick={() => setMobileOpen(false)}
-          initial={false}
-          animate={{ opacity: mobileOpen ? 1 : 0 }}
-          transition={{ duration: 0.325, ease: [0.42, 0, 0.58, 1] }}
+          data-nav-open={mobileOpen || undefined}
           className={cx(
-            "absolute inset-0 z-50 cursor-pointer rounded-[inherit] bg-black/10 dark:bg-white/5 lg:hidden",
+            navMotion.pushBackdrop, "absolute inset-0 z-50 cursor-pointer rounded-[inherit] bg-black/10 dark:bg-white/5 lg:hidden",
             mobileOpen ? "pointer-events-auto" : "pointer-events-none",
           )}
         />
@@ -110,7 +106,7 @@ export function AiProfileShell({ contained = false }: { contained?: boolean } = 
           <AgentsChartCard />
           <TokensChartCard />
         </div>
-      </motion.main>
+      </main>
     </div>
   ));
 }

@@ -1,23 +1,20 @@
-import Image from "next/image";
-import Link from "next/link";
+import { IntentLink as Link } from "./intent-link";
 import type { ReactNode } from "react";
 import {
   RiArrowLeftLine, RiArrowRightLine, RiHome5Line, RiSettings3Line, RiStackLine,
 } from "@remixicon/react";
 import { ThemeToggle } from "../application/theme/theme-toggle";
 import { cx } from "../../utils/cx";
+import { WorkspaceTeamAvatar, WorkspaceWordmark } from "./brand";
 import { workspaceName } from "./identity";
 import { workspaceLibrary, workspaceRoutes, workspaceTools, type WorkspaceRoute } from "./navigation";
 import { SidebarNavigation } from "./sidebar-navigation";
-import workspaceLogo from "./workspace-logo.png";
+import { RightSidebarToolbarProvider, RightSidebarToolbarSlot } from "./right-sidebar-control";
 
 export function WorkspaceMark({ compact = false }: { compact?: boolean }) {
-  const size = compact ? 32 : 40;
-
   return (
-    <Link href="/" className="inline-flex min-w-0 items-center gap-3 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-border-focus-ring" aria-label={`${workspaceName} 首页`}>
-      <Image src={workspaceLogo} alt="" width={size} height={size} className="shrink-0" unoptimized />
-      <span className="truncate text-headline-semibold text-text-primary">{workspaceName}</span>
+    <Link href="/" className="inline-flex min-w-0 items-center rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-border-focus-ring" aria-label={`${workspaceName} 首页`}>
+      <WorkspaceWordmark alt="" className={compact ? "w-36" : "w-40"} />
     </Link>
   );
 }
@@ -31,7 +28,7 @@ const sectionLabels: Record<WorkspaceSection, string> = {
 export function WorkspaceSidebar({ active }: { active: WorkspaceSection }) {
   const navClass = "flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-medium transition-colors duration-150 hover:bg-background-secondary-hover focus-visible:outline-2 focus-visible:outline-border-focus-ring";
   return (
-    <aside className="sticky top-0 hidden h-dvh w-[228px] shrink-0 flex-col border-e border-separator-border bg-background-primary-default p-4 lg:flex">
+    <aside data-titlebar-sidebar="desktop" className="sticky top-0 hidden h-dvh w-[228px] shrink-0 flex-col border-e border-separator-border bg-background-primary-default p-4 lg:flex">
       <div className="px-2 pb-8 pt-2"><WorkspaceMark /></div>
       <SidebarNavigation>
         <Link href="/" aria-current={active === "home" ? "page" : undefined} className={cx(navClass, active === "home" ? "bg-accent-500/10 text-accent-600" : "text-text-secondary")}>
@@ -65,10 +62,10 @@ export function WorkspaceSidebar({ active }: { active: WorkspaceSection }) {
 
 export function WorkspaceFrame({ active, children }: { active: WorkspaceSection; children: ReactNode }) {
   return (
-    <div className="flex min-h-dvh bg-background-full text-text-primary">
+    <div data-titlebar-page="workspace" className="flex min-h-dvh bg-background-full text-text-primary">
       <WorkspaceSidebar active={active} />
       <div className="min-w-0 flex-1">
-        <header className="flex h-16 items-center justify-between gap-4 border-b border-separator-border px-5 lg:px-9">
+        <header data-titlebar-header className="flex h-16 items-center justify-between gap-4 border-b border-separator-border px-5 lg:px-9">
           <div className="lg:hidden"><WorkspaceMark compact /></div>
           <div className="hidden items-center gap-2 text-body-medium lg:flex">
             <span className="text-text-tertiary">工作台</span>
@@ -93,21 +90,26 @@ export function WorkspaceFrame({ active, children }: { active: WorkspaceSection;
 export function TemplateFrame({ route, children }: { route: WorkspaceRoute["id"]; children: ReactNode }) {
   const current = workspaceRoutes.find((item) => item.id === route);
   return (
-    <div className="workspace-template flex h-dvh flex-col overflow-hidden bg-background-full text-text-primary">
-      <header className="relative z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-separator-border bg-background-primary-default px-3 sm:px-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 text-body-medium text-text-secondary hover:bg-background-secondary-hover focus-visible:outline-2 focus-visible:outline-border-focus-ring">
-            <RiArrowLeftLine className="size-4" aria-hidden="true" />工作台
-          </Link>
-          <span className="h-4 w-px shrink-0 bg-separator-border" aria-hidden="true" />
-          <strong className="truncate text-body-semibold">{current?.label}</strong>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {route !== "chat" && <span className="rounded-full bg-background-secondary-default px-2.5 py-1 text-caption-1-medium text-text-secondary">{route === "agents" ? "本地演示" : "示例数据"}</span>}
-          <div className="flex items-center gap-2"><Link href="/settings" aria-label="打开设置" className="grid size-8 place-items-center rounded-lg text-foreground-icon-secondary hover:bg-background-secondary-hover focus-visible:outline-2 focus-visible:outline-border-focus-ring"><RiSettings3Line className="size-4" aria-hidden="true" /></Link><ThemeToggle appearance="segmented" size="small" /></div>
-        </div>
-      </header>
-      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
-    </div>
+    <RightSidebarToolbarProvider>
+      <div data-titlebar-page="template" className="workspace-template flex h-dvh flex-col overflow-hidden bg-background-full text-text-primary">
+        <header data-titlebar-header className="relative z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-separator-border bg-background-primary-default px-3 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 text-body-medium text-text-secondary hover:bg-background-secondary-hover focus-visible:outline-2 focus-visible:outline-border-focus-ring">
+              <RiArrowLeftLine className="size-4" aria-hidden="true" />
+              <WorkspaceTeamAvatar size="xs" />
+              工作台
+            </Link>
+            <span className="h-4 w-px shrink-0 bg-separator-border" aria-hidden="true" />
+            <strong className="truncate text-body-semibold">{current?.label}</strong>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {route !== "chat" && <span className="rounded-full bg-background-secondary-default px-2.5 py-1 text-caption-1-medium text-text-secondary">{route === "agents" ? "本地演示" : "示例数据"}</span>}
+            <div className="flex items-center gap-2"><Link href="/settings" aria-label="打开设置" className="grid size-8 place-items-center rounded-lg text-foreground-icon-secondary hover:bg-background-secondary-hover focus-visible:outline-2 focus-visible:outline-border-focus-ring"><RiSettings3Line className="size-4" aria-hidden="true" /></Link><ThemeToggle appearance="segmented" size="small" /></div>
+            <RightSidebarToolbarSlot />
+          </div>
+        </header>
+        <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+      </div>
+    </RightSidebarToolbarProvider>
   );
 }

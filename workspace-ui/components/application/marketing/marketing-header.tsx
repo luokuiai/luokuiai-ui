@@ -8,6 +8,8 @@ import { Avatar } from "../../base/avatar/avatar";
 import { Breadcrumb, BreadcrumbItem } from "../../base/breadcrumb/breadcrumb";
 import { Button } from "../../base/buttons/button";
 import { IconButton } from "../../base/buttons/icon-button";
+import { WorkspaceTeamAvatar } from "../../workspace/brand";
+import { teamName } from "../../workspace/identity";
 
 /**
  * Marketing template header — the same breadcrumb + title + action-row recipe
@@ -20,8 +22,8 @@ export function MarketingHeader({ onMenuClick }: { onMenuClick?: () => void } = 
       {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbItem href="/templates/dashboard">
-          <Avatar size="xs" color="blue" initials="B" />
-          Board team
+          <WorkspaceTeamAvatar size="xs" />
+          {teamName}
         </BreadcrumbItem>
         <BreadcrumbItem href="/templates/dashboard">
           <Avatar size="xs" color="neutral" initials="M" />

@@ -2,6 +2,12 @@
 
 `@luokui/ui` 1.x 收录 `LUOKUI-AI/components` 的基础组件、应用组件、设计基础和工作台组件。组件按原模块导出，保留原有属性、泛型、受控和非受控接口、事件回调与样式。
 
+## 1.2.0 变更记录
+
+- 新增 `@luokui/ui/desktop`。用 `DesktopWorkspaceShell` 包住工作区页面即可试用 B+C 标题栏，展开显示业务侧栏，收起显示紧凑导航。Next.js 示例站的「桌面工作台」入口演示完整接线。
+- 代码工作台和图库支持隐藏、打开、全宽及恢复。群聊设置随当前会话切换。左右侧栏默认使用 280 ms 过渡，系统启用减少动态时立即切换。
+- 收录日历、命令面板、上下文菜单、组合框、Toast 等本项目组件。原来的聊天、仪表盘、热图包入口仍然可用。原型的 Inter 字体、品牌和工单图片随包交付。
+
 ## 1.1.0 变更记录
 
 - `@luokui/ui/chat` 提供可由宿主组合的聊天布局。消息、会话、请求、输入组件和权限由宿主管理。毕昇聊天样式单独从 `@luokui/ui/chat-bisheng.css` 导入。
@@ -44,6 +50,23 @@ export function Dashboard({ chart }: { chart: AreaChartCardProps }) {
 根入口聚合部分常用组件。其余模块按原目录与扩展名导入，例如 `@luokui/ui/components/base/token-input/token-input.tsx`。库同时保留源文件的 TypeScript 类型和 CSS Modules。应用组件依赖的路由、权限和模型服务由宿主提供。原 `AgentChat` 使用 `/api/chat`，其中 `GET` 查询模型配置，`POST` 按 AI SDK UI Message Stream 协议返回流式内容。
 
 需要原模板的绝对路径图片时，在应用项目内运行 `npx luokui-ui-assets public`。相同文件会跳过，已有同名文件内容不同时会提示冲突。可对专门生成的目录使用 `--overwrite`。自定义页面也可以从 `@luokui/ui/assets/*` 直接引用图片。
+
+## 接入桌面工作台
+
+在现有路由布局中，给 `DesktopWorkspaceShell` 传入当前工作区路径。页面可以组合 `WorkspaceFrame`、`TemplateFrame`，也可直接使用 `WorkspaceOverview`。右栏使用 `RightSidebarControl` 注册操作，按钮出现在当前窗口标题栏最右侧。按需导入 `@luokui/ui/sidebar-motion.module.css` 可在自建面板复用进退动效。
+
+```tsx
+import { DesktopWorkspaceShell, WorkspaceOverview } from '@luokui/ui/desktop'
+import '@luokui/ui/styles.css'
+
+export function Overview() {
+  return <DesktopWorkspaceShell pathname="/">
+    <WorkspaceOverview />
+  </DesktopWorkspaceShell>
+}
+```
+
+壳默认用页面链接导航。嵌入子路径时可以传 `basePath` 和路由回调 `onNavigate`。实际接线见 [示例站路由布局](demo/app/workspace/layout.tsx)。在采用 macOS 原生窗口控制按钮的宿主中，以 `windowControlsInset` 预留按钮所在宽度。
 
 ## 本地示例站
 

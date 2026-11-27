@@ -18,11 +18,14 @@ import {
 import { DashboardUserMenu } from "../dashboard/dashboard-user-menu";
 import { SettingsModal } from "../settings/settings-modal";
 import { ThemeToggle } from "../theme/theme-toggle";
-import { Avatar } from "../../base/avatar/avatar";
+import { WorkspaceTeamAvatar } from "../../workspace/brand";
+import { teamName } from "../../workspace/identity";
 import { Button } from "../../base/buttons/button";
 import { CloseButton } from "../../base/buttons/close-button";
 import { Kbd } from "../../base/kbd/kbd";
 import { cx } from "../../../utils/cx";
+import navMotion from "../../../styles/sidebar-motion.module.css";
+import styles from "./ai-chat-shell.module.css";
 
 /**
  * Figma source: Board UI → "ai_chat" → Sidebar (node 4030:5910, 260×876).
@@ -109,6 +112,7 @@ function NavItem({
     <a
       href="#"
       aria-label={label}
+      title={label}
       onClick={
         onClick
           ? (event) => {
@@ -259,6 +263,7 @@ export function AiChatSidebar({
   onThreadSelect,
   onClose,
   flat = false,
+  desktopNavigation = false,
 }: {
   repos?: AiChatRepo[];
   className?: string;
@@ -266,9 +271,11 @@ export function AiChatSidebar({
   onThreadSelect?: (id: string) => void;
   onClose?: () => void;
   flat?: boolean;
+  desktopNavigation?: boolean;
 } = {}) {
   const localize = useTemplateCopy();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
   const [query, setQuery] = useState("");
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
@@ -296,7 +303,10 @@ export function AiChatSidebar({
     matches("使用帮助") ||
     matches("设置");
 
-  const activateSearch = useCallback(() => setSearchActive(true), []);
+  const activateSearch = useCallback(() => {
+    setCollapsed(false);
+    setSearchActive(true);
+  }, []);
   const deactivateSearch = useCallback((restoreFocus: boolean) => {
     setQuery("");
     setSearchActive(false);
@@ -338,7 +348,10 @@ export function AiChatSidebar({
 
   return localize((
     <aside
+      data-titlebar-sidebar={desktopNavigation ? "desktop" : undefined}
+      data-nav-collapsed={collapsed || undefined}
       className={cx(
+        !flat && [styles.codeNav, navMotion.timing],
         "flex h-full w-[260px] shrink-0 flex-col justify-between overflow-hidden p-3",
         flat
           ? "bg-background-full"
@@ -348,12 +361,14 @@ export function AiChatSidebar({
     >
       <div className="flex min-h-0 w-full flex-col gap-3">
         {/* Workspace switcher + panel toggle */}
-        <div className="flex w-full flex-row items-center justify-between">
-          <DashboardUserMenu
-            avatarClassName={
-              flat ? "bg-background-tertiary-default dark:bg-background-secondary-default" : undefined
-            }
-          />
+        <div className={cx(!flat && styles.codeNavHeader, "flex w-full flex-row items-center justify-between")}>
+          <div className={!flat ? styles.codeNavDetail : undefined} inert={collapsed}>
+            <DashboardUserMenu
+              avatarClassName={
+                flat ? "bg-background-tertiary-default dark:bg-background-secondary-default" : undefined
+              }
+            />
+          </div>
           {flat ? (
             <button
               type="button"
@@ -365,11 +380,13 @@ export function AiChatSidebar({
           ) : (
             <button
               type="button"
-              aria-label="收起侧栏"
-              onClick={onClose}
-              className="cursor-pointer text-foreground-icon-secondary"
+              aria-label={collapsed ? "展开侧栏" : "收起侧栏"}
+              title={collapsed ? "展开侧栏" : "收起侧栏"}
+              aria-expanded={!collapsed}
+              onClick={onClose ?? (() => setCollapsed((current) => !current))}
+              className="sidebar-tool-button"
             >
-              <RiSideBarFill className="size-5 -scale-x-100 rtl:scale-x-100" aria-hidden />
+              <RiSideBarFill className={cx("size-5", !collapsed && "-scale-x-100 rtl:scale-x-100", collapsed && "rtl:-scale-x-100")} aria-hidden />
             </button>
           )}
         </div>
@@ -413,11 +430,11 @@ export function AiChatSidebar({
           >
             <span className="flex min-w-0 flex-1 items-center gap-2">
               <RiSearchLine className="size-5 shrink-0 text-foreground-icon-secondary" aria-hidden />
-              <span className="text-body-medium whitespace-nowrap text-text-secondary">
+              <span className={cx(styles.codeNavDetail, "text-body-medium whitespace-nowrap text-text-secondary")}>
                 快速搜索
               </span>
             </span>
-            <Kbd>⌘L</Kbd>
+            <span className={styles.codeNavDetail}><Kbd>⌘L</Kbd></span>
           </button>
         ))}
 
@@ -431,7 +448,7 @@ export function AiChatSidebar({
 
           {/* Repositories tree */}
           {filteredRepos.length > 0 && (
-            <div className="flex w-full flex-col gap-2.5">
+            <div className={cx(styles.codeNavDetail, "flex w-full flex-col gap-2.5")} inert={collapsed}>
               <span className="text-body-medium text-text-secondary">代码仓库</span>
               <nav className="flex w-full flex-col gap-1">
                 {filteredRepos.map((repo) => (
@@ -453,10 +470,12 @@ export function AiChatSidebar({
       </div>
 
       <div className="flex w-full flex-col gap-3 pt-3">
-        <ThemeToggle
-          appearance="sidebar-segmented"
-          className={flat ? "!bg-background-secondary-default" : undefined}
-        />
+        <div className={!flat ? styles.codeNavDetail : undefined} inert={collapsed}>
+          <ThemeToggle
+            appearance="sidebar-segmented"
+            className={flat ? "!bg-background-secondary-default" : undefined}
+          />
+        </div>
         {/* Secondary nav */}
         <nav className="flex w-full flex-col gap-1">
           {matches("使用帮助") && <NavItem icon={RiCustomerServiceLine} label="使用帮助" />}
@@ -471,20 +490,17 @@ export function AiChatSidebar({
 
         {/* Plan card */}
         <div
+          inert={collapsed}
           className={cx(
+            !flat && styles.codeNavDetail,
             "flex w-full items-center justify-between rounded-xl py-2 pe-3 ps-2.5",
             flat ? "bg-background-secondary-default" : "bg-background-tertiary-default",
           )}
         >
           <span className="flex min-w-0 items-center gap-2">
-            <Avatar
-              size="md"
-              color="blue"
-              initials="B"
-              className="text-[18.824px] leading-[22.588px] font-medium"
-            />
+            <WorkspaceTeamAvatar />
             <span className="flex min-w-0 flex-col items-start justify-center">
-              <span className="text-body-medium whitespace-nowrap text-text-primary">LUOKUI-AI 团队</span>
+              <span className="text-body-medium whitespace-nowrap text-text-primary">{teamName}</span>
               <span className="text-body-regular whitespace-nowrap text-text-secondary">
                 专业方案
               </span>

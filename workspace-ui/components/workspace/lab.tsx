@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { RiArrowRightUpLine, RiPlayLine, RiRestartLine } from "@remixicon/react";
 import { ContributionsCard } from "../application/dashboard/contributions-card";
 import { AgentAvatar } from "../application/agent-avatar/agent-avatar";
@@ -29,6 +29,8 @@ const sections = [
   { id: "agents", title: "代理形象" },
 ] as const;
 
+const SelectedDemo = createContext<string | null>(null);
+
 function DemoCard({ id, title, description, wide, children }: {
   id: string;
   title: string;
@@ -36,6 +38,8 @@ function DemoCard({ id, title, description, wide, children }: {
   wide?: boolean;
   children: ReactNode;
 }) {
+  const selected = useContext(SelectedDemo);
+  if (selected) return selected === id ? <div className="grid min-w-0 gap-4">{children}</div> : null;
   return (
     <article id={id} className={cx("flex min-w-0 scroll-mt-5 flex-col gap-4 rounded-3xl border border-border-button-default bg-background-primary-default p-4 sm:p-5", wide && "xl:col-span-2")}>
       <div className="flex flex-col gap-1">
@@ -133,6 +137,7 @@ function AgentLogDemo({ playing }: { playing: boolean }) {
 }
 
 function ExecutionDemos() {
+  const selected = useContext(SelectedDemo);
   const [run, setRun] = useState(0);
   const [playing, setPlaying] = useState(true);
   function replay() {
@@ -146,7 +151,7 @@ function ExecutionDemos() {
         <Button variant="secondary" size="small" leadingIcon={RiRestartLine} onClick={replay}>重播执行演示</Button>
         <Button variant="secondary" size="small" leadingIcon={playing ? undefined : RiPlayLine} onClick={() => setPlaying(!playing)}>{playing ? "暂停执行演示" : "继续执行演示"}</Button>
       </div>
-      <div className="grid items-start gap-3 xl:grid-cols-2">
+      <div className={cx("grid items-start gap-3", !selected && "xl:grid-cols-2")}>
         <DemoCard id="agent-thinking" title="代理思考状态" description="四种指示动效带有独立的计时显示。">
           <div className="grid grid-cols-2 gap-3 rounded-2xl bg-background-secondary-default p-4">
             <AgentThinking key={`wave-${run}`} variant="wave" label="波动" />
@@ -227,6 +232,22 @@ function AgentDemos() {
       </DemoCard>
     </>
   );
+}
+
+const standaloneDemos = [
+  { ids: ["composer", "composer-panel", "composer-attachments", "composer-loader", "token-input"], Demo: ComposerDemos },
+  { ids: ["agent-thinking", "agent-progress", "task-list", "web-search", "agent-log"], Demo: ExecutionDemos },
+  { ids: ["questionnaire", "agent-limits-card"], Demo: PlanningDemos },
+  { ids: ["agent-avatar", "agent-creator"], Demo: AgentDemos },
+];
+
+export const standaloneDemoIds = standaloneDemos.flatMap(({ ids }) => ids);
+
+export function LabPreview({ id }: { id: string }) {
+  const match = standaloneDemos.find(({ ids }) => ids.includes(id));
+  if (!match) throw new Error("组件演示缺失：" + id);
+  const { Demo } = match;
+  return <SelectedDemo.Provider value={id}><Demo /></SelectedDemo.Provider>;
 }
 
 export function ComponentLab() {

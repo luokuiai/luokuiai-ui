@@ -2,13 +2,15 @@
 
 import { useTemplateCopy } from "../../foundations/template-copy/template-copy";
 
-import { useId } from "react";
+import { useId, useState } from "react";
+import { RiArrowLeftSLine } from "@remixicon/react";
 import { AgentPreferencesPanel } from "./agent-preferences";
 import { AgentAvatar } from "../agent-avatar/agent-avatar";
 import { type AvatarConfig } from "../agent-avatar/model";
 import { Input } from "../../base/input/input";
 import { Textarea } from "../../base/textarea/textarea";
 import { CloseButton } from "../../base/buttons/close-button";
+import { IconButton } from "../../base/buttons/icon-button";
 import { Dropdown, DropdownPopover, DropdownTrigger } from "../../base/dropdown/dropdown";
 import { GlossSwatch, RainbowGlossArt, type GlossHue } from "../theme/accent-gloss";
 import { CustomColorPicker } from "../theme/custom-color-picker";
@@ -43,16 +45,19 @@ function hexAppearance(hex: string): Partial<AvatarConfig> {
   return { hue: hue * 60, saturation: delta ? delta / (1 - Math.abs(2 * light - 1)) * 100 : 0, lightness: light * 100, lightEyes: light < .35 };
 }
 
-export type AgentCreatorProps = { agent: Agent; onChange: (agent: Agent) => void; onClose?: () => void };
+export type AgentCreatorProps = { agent: Agent; onChange: (agent: Agent) => void; onClose?: () => void; onBack?: () => void };
 
 /** Controlled creator block; the host owns saving and the surrounding panel. */
-export function AgentCreator({ agent, onChange, onClose }: AgentCreatorProps) {
+export function AgentCreator({ agent, onChange, onClose, onBack }: AgentCreatorProps) {
   const localize = useTemplateCopy();
   const id = useId();
+  const [nameInput, setNameInput] = useState<string | null>(null);
   const c = agent.avatar;
   const appearance = (patch: Partial<AvatarConfig>) => onChange({ ...agent, avatar: { ...c, ...patch, lookAt: "wander" } });
   return localize(<section aria-label="代理编辑器" className="flex h-full min-h-0 flex-col bg-background-full ps-1 pe-2">
     <header className="relative flex h-8 shrink-0 items-start justify-center pt-4">
+      {onBack && <IconButton icon={RiArrowLeftSLine} size="small" data-group-back aria-label="返回群聊设置" title="返回群聊设置"
+        className="absolute start-0 top-2 border-0 bg-transparent text-foreground-icon-secondary shadow-none" onClick={onBack} />}
       <h2 className="max-w-[260px] truncate text-body-medium text-text-primary">{agent.name || "New bot"}</h2>
       {onClose && <CloseButton size="xs" aria-label="关闭代理编辑器" className="absolute end-0 top-3.5 text-foreground-icon-tertiary" onClick={onClose} />}
     </header>
@@ -73,7 +78,9 @@ export function AgentCreator({ agent, onChange, onClose }: AgentCreatorProps) {
       <div className="mt-[15px] overflow-hidden rounded-2xl bg-background-secondary-default ps-3">
         <div className="grid h-[52px] grid-cols-[96px_minmax(0,1fr)] items-center border-b border-border-button-default dark:border-border-button-default/35 pe-2.5">
           <label htmlFor={`${id}-name`} className="text-body-regular text-text-primary">名称</label>
-          <Input id={`${id}-name`} aria-label="代理名称" size="small" maxLength={48} value={agent.name} onChange={name => onChange({ ...agent, name })} placeholder="示例代理名称" />
+          <Input id={`${id}-name`} aria-label="代理名称" size="small" maxLength={48} value={nameInput ?? agent.name}
+            onChange={name => { setNameInput(name); onChange({ ...agent, name }); }}
+            onBlur={() => setNameInput(null)} placeholder="示例代理名称" />
         </div>
         <div className="grid h-[52px] grid-cols-[96px_minmax(0,1fr)] items-center border-b border-border-button-default dark:border-border-button-default/35 pe-2.5">
           <label htmlFor={`${id}-label`} className="text-body-regular text-text-primary">标签</label>

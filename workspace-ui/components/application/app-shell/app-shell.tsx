@@ -4,19 +4,20 @@ import { useTemplateCopy } from "../../foundations/template-copy/template-copy";
 
 import {
   RiAddFill,
-  RiCloseLine,
   RiDashboardLine,
   RiFilter3Fill,
   RiMenuLine,
 } from "@remixicon/react";
 import type { ComponentType } from "react";
 import { usePathname } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useState, type ReactNode } from "react";
 
 import {
   DashboardSidebar,
   type DashboardNavItem,
 } from "../dashboard/dashboard-sidebar";
+import { MobileNavigationDrawer } from "../dashboard/mobile-navigation";
 import { NotificationBell } from "./notification-bell";
 import { ProOfferCard } from "./pro-offer-card";
 import { Avatar } from "../../base/avatar/avatar";
@@ -25,6 +26,7 @@ import { Button } from "../../base/buttons/button";
 import { IconButton } from "../../base/buttons/icon-button";
 import { cx } from "../../../utils/cx";
 import { teamName } from "../../workspace/identity";
+import { WorkspaceTeamAvatar } from "../../workspace/brand";
 import { workspaceRoutes, workspaceTools } from "../../workspace/navigation";
 
 /**
@@ -39,14 +41,11 @@ import { workspaceRoutes, workspaceTools } from "../../workspace/navigation";
  */
 export const STARTER_SITE_PREFIX = "/templates/chat-starter";
 
-// Re-exported so the catalogue ships with the shell; the starter's pages are
-// copied into the public repo by path and can only import what a registry
-// item carries.
-export {
-  CatalogTierFilter,
-  ComponentsCatalog,
-  type CatalogTier,
-} from "./components-catalog";
+// Keep the optional starter catalogue API without loading its interactive
+// previews, chat transport and charts in every page that imports navigation.
+export type { CatalogTier } from "./components-catalog";
+export const CatalogTierFilter = dynamic(() => import("./components-catalog").then(module => module.CatalogTierFilter));
+export const ComponentsCatalog = dynamic(() => import("./components-catalog").then(module => module.ComponentsCatalog));
 
 /** "" in a deployed starter, the site prefix on boardui.com. */
 export function useStarterBase(): string {
@@ -119,33 +118,16 @@ export function AppShell({
     >
       <DashboardSidebar items={items} selected={selected} className="hidden lg:flex" />
 
-      {/* Below lg the sidebar rides in as an overlay drawer. */}
-      {navOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
-          <button
-            type="button"
-            aria-label="关闭导航"
-            onClick={() => setNavOpen(false)}
-            className="absolute inset-0 cursor-pointer bg-black/40"
-          />
-          <div className="relative flex h-full p-3">
-            <DashboardSidebar
-              mobile
-              items={items}
-              selected={selected}
-              onClose={() => setNavOpen(false)}
-              className="flex"
-            />
-          </div>
-        </div>
-      )}
+      <MobileNavigationDrawer isOpen={navOpen} onOpenChange={setNavOpen}>
+        <DashboardSidebar mobile items={items} selected={selected} onClose={() => setNavOpen(false)} />
+      </MobileNavigationDrawer>
 
       <main className="relative flex min-h-0 min-w-0 flex-1 justify-center overflow-x-hidden overflow-y-auto bg-background-full sm:pt-3">
         <div className={cx("flex w-full max-w-[1300px] flex-col gap-2.5", columnClassName)}>
           <header className="flex w-full flex-col gap-2">
             <Breadcrumb>
               <BreadcrumbItem href="/">
-                <Avatar size="xs" color="blue" initials="B" />
+                <WorkspaceTeamAvatar size="xs" />
                 {teamName}
               </BreadcrumbItem>
               <BreadcrumbItem href="/">
@@ -159,10 +141,12 @@ export function AppShell({
             <div className="flex w-full flex-wrap items-end justify-between gap-2">
               <div className="flex min-w-0 items-center gap-1.5">
                 <IconButton
-                  icon={navOpen ? RiCloseLine : RiMenuLine}
+                  icon={RiMenuLine}
                   size="medium"
                   aria-label="打开导航"
-                  onClick={() => setNavOpen((open) => !open)}
+                  aria-haspopup="dialog"
+                  aria-expanded={navOpen}
+                  onClick={() => setNavOpen(true)}
                   className="lg:hidden"
                 />
                 <h1 className="px-1 text-title-2-medium whitespace-nowrap text-text-primary">

@@ -1,0 +1,49 @@
+.workspace {
+  --sidebar-transition-duration: 0s;
+}
+
+.workspace[data-size-motion] {
+  --sidebar-transition-duration: var(--sidebar-motion-duration);
+}
+
+.workspace .conversation {
+  transition:
+    flex-grow var(--sidebar-transition-duration) var(--sidebar-motion-ease),
+    opacity var(--sidebar-transition-duration) var(--sidebar-motion-ease),
+    visibility var(--sidebar-transition-duration) linear,
+    var(--sidebar-push-transitions);
+}
+
+.codeNav {
+  transition-property: width;
+}
+
+.codeNav[data-nav-collapsed] {
+  width: 60px;
+}
+
+.codeNavHeader {
+  position: relative;
+}
+
+.codeNavHeader > button {
+  position: absolute;
+  inset-inline-end: 0;
+}
+
+.codeNavHeader > button:focus-visible::after {
+  inset-inline: auto -8px;
+  padding-inline: 5px;
+}
+
+.codeNavDetail,
+.codeNav a[aria-label] > span {
+  transition:
+    opacity var(--sidebar-motion-duration) var(--sidebar-motion-ease),
+    visibility var(--sidebar-motion-duration) linear;
+}
+
+.codeNav[data-nav-collapsed] :is(.codeNavDetail, a[aria-label] > span) {
+  visibility: hidden;
+  opacity: 0;
+}

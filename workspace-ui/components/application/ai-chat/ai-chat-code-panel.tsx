@@ -2,19 +2,17 @@
 
 import { useTemplateCopy } from "../../foundations/template-copy/template-copy";
 
-import type { ComponentType } from "react";
 import { useState, type CSSProperties } from "react";
 import {
   RiCornerUpLeftLine,
-  RiExpandDiagonalSLine,
   RiGlobalLine,
   RiInfinityLine,
-  RiSideBarLine,
   RiTerminalFill,
 } from "@remixicon/react";
 import { Highlight, type PrismTheme } from "prism-react-renderer";
 import { PillTab, PillTabList } from "../../base/tabs/pill-tab";
 import { cx } from "../../../utils/cx";
+import { PanelExpandButton, usePanelExpansion, type PanelExpandProps } from "./panel-action";
 
 /**
  * Figma source: Board UI → "ai_chat" → Changes / code panel (nodes 4030:5993,
@@ -26,11 +24,6 @@ import { cx } from "../../../utils/cx";
  * touched file row, and the live code view — JetBrains Mono 13/23 with the
  * blue/purple keyword accents from the design.
  */
-
-type IconComponent = ComponentType<{
-  className?: string;
-  "aria-hidden"?: boolean | "true" | "false";
-}>;
 
 /* ----------------------------------------------------------------- changes */
 
@@ -186,18 +179,6 @@ function CodeView() {
 
 /* ------------------------------------------------------------------- panel */
 
-function PanelAction({ icon: Icon, label }: { icon: IconComponent; label: string }) {
-  const localize = useTemplateCopy();
-  return localize((
-    <button type="button" aria-label={label} className="group cursor-pointer outline-none">
-      <Icon
-        className="size-4 text-foreground-icon-secondary transition-colors duration-150 group-hover:text-foreground-icon-hover group-focus-visible:text-foreground-icon-hover"
-        aria-hidden
-      />
-    </button>
-  ));
-}
-
 function BrowserPlaceholder() {
   const localize = useTemplateCopy();
   return localize((
@@ -210,13 +191,16 @@ function BrowserPlaceholder() {
 export function AiChatCodePanel({
   className,
   width = 410,
-}: { className?: string; width?: CSSProperties["width"] } = {}) {
+  isExpanded,
+  onToggleExpand,
+}: Partial<PanelExpandProps> & { className?: string; width?: CSSProperties["width"] } = {}) {
+  const panel = usePanelExpansion(width, isExpanded, onToggleExpand);
   const localize = useTemplateCopy();
   const [tab, setTab] = useState<"changes" | "browser">("changes");
 
   return localize((
     <aside
-      style={{ width, minWidth: width, maxWidth: width, flexBasis: width }}
+      style={{ width: panel.width, minWidth: panel.width, maxWidth: panel.width, flexBasis: panel.width }}
       className={cx("flex h-full shrink-0 flex-col gap-2.5 overflow-hidden pt-2", className)}
     >
       {/* Tab switcher + panel actions */}
@@ -230,9 +214,10 @@ export function AiChatCodePanel({
           </PillTab>
         </PillTabList>
         <div className="flex items-center gap-2 pe-px">
-          <PanelAction icon={RiTerminalFill} label="打开终端" />
-          <PanelAction icon={RiExpandDiagonalSLine} label="展开面板" />
-          <PanelAction icon={RiSideBarLine} label="切换面板" />
+          <button type="button" aria-label="打开终端" className="group cursor-pointer outline-none">
+            <RiTerminalFill aria-hidden className="size-4 text-foreground-icon-secondary transition-colors duration-150 group-hover:text-foreground-icon-hover group-focus-visible:text-foreground-icon-hover" />
+          </button>
+          <PanelExpandButton isExpanded={panel.isExpanded} onToggleExpand={panel.onToggleExpand} />
         </div>
       </div>
 

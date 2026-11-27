@@ -1,17 +1,20 @@
 "use client";
 
+import { SlidingMobilePanel } from "../dashboard/mobile-navigation";
+import navMotion from "../../../styles/sidebar-motion.module.css";
+import { RightSidebarButton, RightSidebarControl } from "../../workspace/right-sidebar-control";
+
 import { useTemplateCopy } from "../../foundations/template-copy/template-copy";
 
-import { useDirection } from "../../foundations/direction/direction";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { RiCloseLine, RiCodeSLine, RiGalleryLine, RiMenuLine } from "@remixicon/react";
-import { motion } from "motion/react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { RiCloseLine, RiMenuLine } from "@remixicon/react";
 import { AiChatCodePanel } from "./ai-chat-code-panel";
 import { AiChatContainer, type AiChatScenario } from "./ai-chat-container";
 import { AiChatGalleryPanel, type Generation } from "./ai-chat-gallery-panel";
 import { AiChatSidebar } from "./ai-chat-sidebar";
 import { IconButton } from "../../base/buttons/icon-button";
 import { cx } from "../../../utils/cx";
+import styles from "./ai-chat-shell.module.css";
 
 /**
  * Figma source: Board UI → "ai_chat" (node 4030:5897, 1440×900).
@@ -21,7 +24,7 @@ import { cx } from "../../../utils/cx";
  * width remains, and the resizable code panel on the right (16px gap to
  * the chat, 12px to the sidebar). Hovering the chat's right edge reveals a
  * drag handle (Figma node 4040:5413) — holding and dragging it trades width
- * between the chat and the code panel. Below xl the code panel hides; below
+ * between the chat and the code panel. Below xl the panel opens as a drawer; below
  * lg the sidebar becomes a push drawer: it slides in from the left while the
  * complete chat workspace moves right, keeping its context visible.
  */
@@ -29,6 +32,7 @@ import { cx } from "../../../utils/cx";
 const PANEL_DEFAULT_WIDTH = 410;
 const PANEL_MIN_WIDTH = 320;
 const PANEL_MAX_WIDTH = 560;
+const splitPanel = { expanded: false, animate: false };
 
 /** The image the demo thread "generates" — mirrored into the gallery when
  *  the reveal finishes so the two panes tell one story. */
@@ -46,8 +50,8 @@ const MESSI_GENERATION: Generation = {
 const GALLERY_REVEAL_DELAY_MS = 900;
 
 /**
- * Resize grip straddling the chat container's right edge: a 15×25 white pill
- * with three grip lines, revealed on hover and while dragging. The pill
+ * The divider paints the full space between the two panes. Its 15×25 grip
+ * with three lines is revealed on hover and while dragging. The pill
  * follows the cursor vertically along the edge; dragging calls `onResize`
  * with the horizontal delta from the drag start.
  */
@@ -55,10 +59,12 @@ function DragHandle({
   onResizeStart,
   onResize,
   isDragging,
+  collapsed,
 }: {
   onResizeStart: () => void;
   onResize: (dx: number) => void;
   isDragging: boolean;
+  collapsed: boolean;
 }) {
   const localize = useTemplateCopy();
   const startX = useRef(0);
@@ -76,6 +82,8 @@ function DragHandle({
       role="separator"
       aria-orientation="vertical"
       aria-label="调整面板大小"
+      aria-hidden={collapsed}
+      inert={collapsed}
       onPointerDown={(e) => {
         e.preventDefault();
         startX.current = e.clientX;
@@ -88,7 +96,8 @@ function DragHandle({
           onResize((e.clientX - startX.current) * (getComputedStyle(e.currentTarget).direction === "rtl" ? -1 : 1));
         }
       }}
-      className="group/drag absolute inset-y-0 -end-2.5 z-10 hidden w-5 cursor-col-resize touch-none justify-center xl:flex"
+      className={cx(navMotion.dockWidth, "group/drag relative z-10 hidden shrink-0 cursor-col-resize touch-none justify-center self-stretch bg-background-full before:absolute before:inset-y-0 before:-inset-x-1 xl:flex",
+        collapsed ? "pointer-events-none w-0 overflow-hidden" : "w-3")}
     >
       <span
         style={gripY !== null ? { top: gripY } : undefined}
@@ -120,13 +129,54 @@ export function AiChatShell({
   composer?: ReactNode;
 } = {}) {
   const localize = useTemplateCopy();
-  const direction = useDirection();
   const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT_WIDTH);
+  const [panelSize, setPanelSize] = useState(splitPanel);
+  const isPanelExpanded = panelSize.expanded;
   const [isDragging, setIsDragging] = useState(false);
-  const [activeScenario, setActiveScenario] = useState<AiChatScenario>(defaultScenario);
+  const [{ scenario: activeScenario, animateOnEntry }, selectThread] = useState({
+    scenario: defaultScenario,
+    animateOnEntry: false,
+  });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const [canDock, setCanDock] = useState(true);
+  const [dockedPanelOpen, setDockedPanelOpen] = useState(true);
+  const panelId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const widthAtDragStart = useRef(PANEL_DEFAULT_WIDTH);
+  const panelOpen = canDock ? dockedPanelOpen : mobilePanelOpen;
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 80rem)");
+    function updateLayout() {
+      if (!media.matches && document.getElementById(panelId)?.contains(document.activeElement)) {
+        triggerRef.current?.focus({ preventScroll: true });
+      }
+      setCanDock(media.matches);
+      setPanelSize(splitPanel);
+      setMobilePanelOpen(false);
+      setIsDragging(false);
+    }
+    updateLayout();
+    media.addEventListener("change", updateLayout);
+    return () => media.removeEventListener("change", updateLayout);
+  }, [panelId]);
+
+  const setPanelOpen = useCallback((open: boolean) => {
+    if (open) setMobileNavOpen(false);
+    else if (document.getElementById(panelId)?.contains(document.activeElement)) {
+      triggerRef.current?.focus({ preventScroll: true });
+    }
+    setPanelSize({ expanded: false, animate: true });
+    setIsDragging(false);
+    if (canDock) setDockedPanelOpen(open);
+    else setMobilePanelOpen(open);
+  }, [canDock, panelId]);
+
+  function togglePanelSize() {
+    setIsDragging(false);
+    setPanelSize(current => ({ expanded: !current.expanded, animate: true }));
+  }
 
   // Images the thread has finished generating — handed to the gallery
   // panel, which lands them at the top-left of the wall.
@@ -154,6 +204,7 @@ export function AiChatShell({
   );
 
   const handleResizeStart = useCallback(() => {
+    setPanelSize(splitPanel);
     widthAtDragStart.current = panelWidth;
     setIsDragging(true);
   }, [panelWidth]);
@@ -171,18 +222,22 @@ export function AiChatShell({
       id === "image-generation" ||
       id === "coding-scenario"
     ) {
-      setActiveScenario(id);
+      if (id !== activeScenario) {
+        setPanelSize(splitPanel);
+        selectThread({ scenario: id, animateOnEntry: true });
+      }
       setMobileNavOpen(false);
     }
   };
 
   const panelLabel = activeScenario === "image-generation" ? "画廊" : "代码";
-  const PanelIcon = activeScenario === "image-generation" ? RiGalleryLine : RiCodeSLine;
+  const panelName = activeScenario === "image-generation" ? "画廊" : "代码面板";
+  const openDockWidth = isPanelExpanded ? "100%" : panelWidth;
 
   return localize((
     <div
       className={cx(
-        "relative flex w-full gap-4 overflow-hidden bg-background-full p-3",
+        "relative flex w-full overflow-hidden bg-background-full p-3",
         contained ? "h-[var(--template-preview-height)]" : "h-dvh",
         isDragging && "cursor-col-resize select-none",
         className,
@@ -190,23 +245,29 @@ export function AiChatShell({
       onPointerUp={() => setIsDragging(false)}
       onPointerCancel={() => setIsDragging(false)}
     >
+      <div className="absolute end-3 top-3 z-50 empty:hidden">
+        <RightSidebarControl>
+          <RightSidebarButton
+            ref={triggerRef}
+            label={`${panelOpen ? "收起" : "打开"}${panelName}`}
+            expanded={panelOpen}
+            controls={panelId}
+            aria-haspopup={canDock ? undefined : "dialog"}
+            onClick={() => setPanelOpen(!panelOpen)}
+          />
+        </RightSidebarControl>
+      </div>
       {/* Mobile navigation stays beneath the workspace. Opening it only moves
           the workspace right while the stationary sidebar content fades in. */}
-      <div
+      <SlidingMobilePanel
         className="absolute inset-y-0 start-0 z-10 flex w-[272px] py-3 ps-[6px] lg:hidden"
-        aria-hidden={!mobileNavOpen}
+        isOpen={mobileNavOpen}
+        onOpenChange={setMobileNavOpen}
       >
-        <motion.div
-          initial={false}
-          animate={{
-            scale: mobileNavOpen ? 1 : 0.94,
-            opacity: mobileNavOpen ? 1 : 0,
-          }}
-          transition={{
-            duration: 0.325,
-            ease: [0.42, 0, 0.58, 1],
-          }}
+        <div
+          data-nav-open={mobileNavOpen || undefined}
           className={cx(
+            navMotion.pushSidebar,
             "h-full w-[260px] origin-left rtl:origin-right will-change-transform",
             mobileNavOpen ? "pointer-events-auto" : "pointer-events-none",
           )}
@@ -218,56 +279,15 @@ export function AiChatShell({
             flat
             className="flex"
           />
-        </motion.div>
-      </div>
-
-      {/* Code and gallery stay usable on phones as a fixed-width right drawer. */}
-      <div
-        className={cx(
-          contained ? "absolute" : "fixed",
-          "inset-0 z-50 xl:hidden",
-          mobilePanelOpen ? "pointer-events-auto" : "pointer-events-none",
-        )}
-        aria-hidden={!mobilePanelOpen}
-      >
-        <button
-          type="button"
-          tabIndex={mobilePanelOpen ? 0 : -1}
-          aria-label={`关闭${panelLabel}`}
-          onClick={() => setMobilePanelOpen(false)}
-          className={cx(
-            "absolute inset-0 bg-black/40 transition-opacity duration-300",
-            mobilePanelOpen ? "opacity-100" : "opacity-0",
-          )}
-        />
-        <div
-          className={cx(
-            "absolute inset-y-0 end-0 flex w-[min(410px,calc(100%_-_12px))] flex-col bg-background-full p-3 shadow-sidebar transition-transform duration-300 ease-in-out",
-            mobilePanelOpen ? "translate-x-0" : "translate-x-[110%] rtl:-translate-x-[110%]",
-          )}
-        >
-          <div className="flex h-10 shrink-0 items-center justify-between px-1">
-            <span className="text-headline-medium text-text-primary">{panelLabel}</span>
-            <IconButton
-              icon={RiCloseLine}
-              size="medium"
-              aria-label={`关闭${panelLabel}`}
-              onClick={() => setMobilePanelOpen(false)}
-            />
-          </div>
-          {activeScenario === "image-generation" ? (
-            <AiChatGalleryPanel width="100%" generated={generated} className="min-h-0 flex-1" />
-          ) : (
-            <AiChatCodePanel width="100%" className="min-h-0 flex-1" />
-          )}
         </div>
-      </div>
+      </SlidingMobilePanel>
 
       <AiChatSidebar
+        desktopNavigation={contained}
         activeThreadId={activeScenario}
         onThreadSelect={selectScenario}
         className={cx(
-          "relative z-10 hidden lg:flex",
+          "relative z-10 me-4 hidden lg:flex",
           // h-full, not `preview-height - 24px`: this shell frames itself with
           // its own p-3, so a percentage height already resolves against the
           // padded content box. Subtracting the frame again (as the shells
@@ -276,76 +296,121 @@ export function AiChatShell({
           contained && "sticky top-0 h-full self-start",
         )}
       />
-      <motion.div
-        initial={false}
-        animate={{ x: mobileNavOpen ? (direction === "rtl" ? -272 : 272) : 0, borderRadius: mobileNavOpen ? 32 : 0 }}
-        transition={{ duration: 0.325, ease: [0.42, 0, 0.58, 1] }}
-        className="relative z-20 flex min-w-0 flex-1 flex-col gap-2 overflow-hidden bg-background-full will-change-transform lg:z-0 lg:!transform-none lg:!rounded-none"
-      >
-        <motion.button
-          type="button"
-          aria-label="关闭导航"
-          tabIndex={mobileNavOpen ? 0 : -1}
-          onClick={() => setMobileNavOpen(false)}
-          initial={false}
-          animate={{ opacity: mobileNavOpen ? 1 : 0 }}
-          transition={{ duration: 0.325, ease: [0.42, 0, 0.58, 1] }}
-          className={cx(
-            "absolute inset-0 z-50 cursor-pointer rounded-[inherit] bg-black/10 dark:bg-white/5 lg:hidden",
-            mobileNavOpen ? "pointer-events-auto" : "pointer-events-none",
-          )}
-        />
-        <div className="flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden">
-          <div className="relative flex min-w-0 flex-1 basis-0">
-            <AiChatContainer
-              scenario={activeScenario}
-              onImageGenerated={handleImageGenerated}
-              composer={composer}
-              mobileHeader={
-                <header className="flex h-12 shrink-0 items-center justify-between px-3 pt-[11px] xl:hidden">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <IconButton
-                      icon={RiMenuLine}
-                      size="medium"
-                      aria-label="打开导航"
-                      onClick={() => {
-                        setMobilePanelOpen(false);
-                        setMobileNavOpen(true);
-                      }}
-                      className="rounded-full lg:hidden"
-                    />
-                    <span className="truncate px-1 text-headline-medium text-text-primary">
-                      {activeScenario === "image-generation" ? "图像生成" : "代理对话"}
-                    </span>
-                  </div>
-                  <IconButton
-                    icon={PanelIcon}
-                    size="medium"
-                    aria-label={`打开${panelLabel}`}
-                    className="rounded-full"
-                    onClick={() => {
-                      setMobileNavOpen(false);
-                      setMobilePanelOpen(true);
-                    }}
-                  />
-                </header>
-              }
-            />
-            <DragHandle
-              onResizeStart={handleResizeStart}
-              onResize={handleResize}
-              isDragging={isDragging}
-            />
+      <div className={cx(styles.workspace, "relative flex min-w-0 flex-1 bg-background-full")} data-size-motion={panelSize.animate || undefined}>
+        <div
+          inert={isPanelExpanded}
+          aria-hidden={isPanelExpanded || undefined}
+          data-nav-open={mobileNavOpen || undefined}
+          className={cx(styles.conversation, navMotion.pushContent, "relative z-20 flex min-w-0 flex-1 flex-col gap-2 overflow-hidden bg-background-full max-lg:will-change-transform lg:z-0 lg:!transform-none lg:!rounded-none",
+            isPanelExpanded ? "invisible opacity-0" : "xl:overflow-visible",
+            isPanelExpanded && !canDock && "grow-0")}
+        >
+          <button
+            type="button"
+            aria-label="关闭导航"
+            tabIndex={-1}
+            aria-hidden={!mobileNavOpen}
+            onClick={() => setMobileNavOpen(false)}
+            data-nav-open={mobileNavOpen || undefined}
+            className={cx(
+              navMotion.pushBackdrop,
+              "absolute inset-0 z-50 cursor-pointer rounded-[inherit] bg-black/10 dark:bg-white/5 lg:hidden",
+              mobileNavOpen ? "pointer-events-auto" : "pointer-events-none",
+            )}
+          />
+          <div className="flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden xl:overflow-visible">
+            <div className="relative flex min-w-0 flex-1 basis-0">
+              <AiChatContainer
+                scenario={activeScenario}
+                animateOnEntry={animateOnEntry}
+                onImageGenerated={handleImageGenerated}
+                composer={composer}
+                mobileHeader={
+                  <header className="flex h-12 shrink-0 items-center justify-between px-3 pt-[11px] xl:hidden">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <IconButton
+                        icon={RiMenuLine}
+                        size="medium"
+                        aria-label="打开导航"
+                        aria-haspopup="dialog"
+                        aria-expanded={mobileNavOpen}
+                        onClick={() => {
+                          setMobilePanelOpen(false);
+                          setMobileNavOpen(true);
+                        }}
+                        className="rounded-full lg:hidden"
+                      />
+                      <span className="truncate px-1 text-headline-medium text-text-primary">
+                        {activeScenario === "image-generation" ? "图像生成" : "代理对话"}
+                      </span>
+                    </div>
+                  </header>
+                }
+              />
+            </div>
           </div>
-          {/* Image generation swaps the code panel for the gallery — same
-              shell dimensions, so the drag-to-resize behaviour is unchanged. */}
-          {activeScenario === "image-generation" ? (
-            <AiChatGalleryPanel width={panelWidth} generated={generated} className="hidden xl:flex" />
-          ) : (
-            <AiChatCodePanel width={panelWidth} className="hidden xl:flex" />
-          )}
         </div>
-      </motion.div>
+        {canDock && (
+          <DragHandle
+            onResizeStart={handleResizeStart}
+            onResize={handleResize}
+            isDragging={isDragging}
+            collapsed={!panelOpen || isPanelExpanded}
+          />
+        )}
+        <SlidingMobilePanel
+          id={panelId}
+          label={panelLabel}
+          isOpen={panelOpen}
+          docked={canDock}
+          breakpoint={null}
+          returnFocusRef={triggerRef}
+          onOpenChange={setPanelOpen}
+          style={canDock ? { width: panelOpen ? openDockWidth : 0 } : undefined}
+          className={canDock
+            ? cx(navMotion.dockWidth, "hidden h-full min-w-0 shrink-0 overflow-clip xl:flex", !panelOpen && "invisible pointer-events-none")
+            : cx("absolute -inset-3 z-50 @container", !panelOpen && "pointer-events-none")}
+        >
+          {!canDock && (
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-hidden
+              onClick={() => setPanelOpen(false)}
+              className={cx(
+                navMotion.fadeVisibility, "absolute inset-y-0 end-0 w-screen bg-black/40",
+                panelOpen && !isPanelExpanded ? "opacity-100" : "pointer-events-none opacity-0",
+              )}
+            />
+          )}
+          <div className={canDock ? "contents" : cx(
+            navMotion.dockWidth, "absolute inset-y-0 end-0 overflow-clip bg-background-full",
+            panelOpen ? (isPanelExpanded ? "w-full" : "w-[min(410px,calc(100%_-_12px))]") : "invisible w-0",
+            !isPanelExpanded && "shadow-sidebar",
+          )}>
+            <div className={cx("flex h-full w-full flex-col", !canDock && "min-w-[min(410px,calc(100cqi_-_12px))] p-3")}
+              style={canDock ? { minWidth: panelWidth } : undefined}>
+              {!canDock && (
+                <div className="flex h-10 shrink-0 items-center justify-between px-1">
+                  <span className="text-headline-medium text-text-primary">{panelLabel}</span>
+                  <IconButton
+                    icon={RiCloseLine}
+                    size="medium"
+                    aria-label={`关闭${panelLabel}`}
+                    onClick={() => setPanelOpen(false)}
+                  />
+                </div>
+              )}
+              {activeScenario === "image-generation" ? (
+                <AiChatGalleryPanel width="100%" generated={generated} animateOnEntry={animateOnEntry} className="min-h-0 flex-1"
+                  isExpanded={isPanelExpanded} onToggleExpand={togglePanelSize} />
+              ) : (
+                <AiChatCodePanel width="100%" className="min-h-0 flex-1" isExpanded={isPanelExpanded} onToggleExpand={togglePanelSize} />
+              )}
+            </div>
+          </div>
+        </SlidingMobilePanel>
+      </div>
     </div>
   ));
 }

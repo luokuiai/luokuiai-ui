@@ -8,6 +8,8 @@ import { Avatar } from "../../base/avatar/avatar";
 import { Breadcrumb, BreadcrumbItem } from "../../base/breadcrumb/breadcrumb";
 import { Button } from "../../base/buttons/button";
 import { IconButton } from "../../base/buttons/icon-button";
+import { WorkspaceTeamAvatar } from "../../workspace/brand";
+import { teamName } from "../../workspace/identity";
 
 /**
  * Figma source: Board UI → dashboard 1 → Frame 60 (node 3731:3011).
@@ -23,8 +25,8 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
       {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbItem href="#">
-          <Avatar size="xs" color="blue" initials="B" />
-          Board team
+          <WorkspaceTeamAvatar size="xs" />
+          {teamName}
         </BreadcrumbItem>
         <BreadcrumbItem href="#">
           <Avatar size="xs" color="neutral" initials="M" />

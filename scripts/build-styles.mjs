@@ -14,6 +14,8 @@ if (result.status !== 0) process.exit(result.status ?? 1)
 const fontRoot = dirname(require.resolve('@fontsource-variable/inter/package.json'))
 await cp(join(fontRoot, 'files'), 'dist/files', { recursive: true })
 
+await cp('workspace-ui/public/fonts', 'dist/files', { recursive: true })
+
 await mkdir('dist/integrations', { recursive: true })
 await Promise.all(['activity-heatmap.css', 'chat-bisheng.css'].map(file =>
   copyFile(join('workspace-ui/integrations', file), join('dist/integrations', file))))

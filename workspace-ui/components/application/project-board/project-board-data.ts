@@ -45,31 +45,31 @@ export const PROJECT_MEMBERS: Record<string, ProjectMember> = {
   maya: {
     id: "maya",
     name: "陈玛雅",
-    avatar: "https://randomuser.me/api/portraits/women/44.jpg",
+    avatar: "/avatars/board-women-44.jpg",
     initials: "MC",
   },
   noah: {
     id: "noah",
     name: "诺亚·威廉斯",
-    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+    avatar: "/avatars/board-men-32.jpg",
     initials: "NW",
   },
   elif: {
     id: "elif",
     name: "埃利夫·卡娅",
-    avatar: "https://randomuser.me/api/portraits/women/68.jpg",
+    avatar: "/avatars/board-women-68.jpg",
     initials: "EK",
   },
   daniel: {
     id: "daniel",
     name: "金丹尼尔",
-    avatar: "https://randomuser.me/api/portraits/men/46.jpg",
+    avatar: "/avatars/board-men-46.jpg",
     initials: "DK",
   },
   priya: {
     id: "priya",
     name: "普里娅·沙阿",
-    avatar: "https://randomuser.me/api/portraits/women/65.jpg",
+    avatar: "/avatars/board-women-65.jpg",
     initials: "PS",
   },
 };

@@ -168,6 +168,8 @@ const inputStyles = sortCx({
 });
 
 /** The field shell's state for a render-prop className. */
+export const inputElementClassName = inputStyles.input;
+
 export interface InputFieldState {
   isFocusWithin: boolean;
   isHovered: boolean;

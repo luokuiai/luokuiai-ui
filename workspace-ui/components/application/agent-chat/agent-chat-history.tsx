@@ -1,5 +1,6 @@
 "use client";
 
+import { formatChatAge } from "./chat-time";
 import { readWorkspaceStorage } from "../../../utils/workspace-storage";
 import { useTemplateCopy } from "../../foundations/template-copy/template-copy";
 
@@ -16,7 +17,7 @@ import {
   RiSettings3Line,
   RiSpeedUpLine,
 } from "@remixicon/react";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { Avatar } from "../../base/avatar/avatar";
 import {
@@ -27,6 +28,8 @@ import {
   DropdownPopover,
   DropdownTrigger,
 } from "../../base/dropdown/dropdown";
+import { MENU_ITEM, MENU_ITEM_INTERACTIVE } from "../../base/dropdown/menu-styles";
+import { IntentLink } from "../../workspace/intent-link";
 import { ChevronDownSmall } from "../../foundations/icons/chevrons";
 import { cx } from "../../../utils/cx";
 
@@ -49,7 +52,15 @@ export interface ChatThreadSummary {
   unread?: boolean;
 }
 
-export interface AgentChatHistoryProps {
+export interface AgentChatAccountOptions {
+  /** Omit to use the starter login page, or pass null when the host has no account session. */
+  onLogout?: (() => void) | null;
+  /** The settings page in the host. Defaults to the current workspace or starter route. */
+  settingsHref?: string;
+}
+
+export interface AgentChatHistoryProps extends AgentChatAccountOptions {
+  id?: string;
   threads: ChatThreadSummary[];
   activeId: string;
   onSelect: (id: string) => void;
@@ -65,6 +76,7 @@ export interface AgentChatHistoryProps {
 }
 
 export function AgentChatHistory({
+  id,
   threads,
   activeId,
   onSelect,
@@ -73,12 +85,16 @@ export function AgentChatHistory({
   onToggleUnread,
   onDelete,
   onExport,
+  onLogout,
+  settingsHref,
   disabled = false,
   className,
 }: AgentChatHistoryProps) {
   const localize = useTemplateCopy();
   return localize((
     <aside
+      id={id}
+      data-chat-history
       aria-label="会话历史"
       className={cx(
         // A card of its own beside the chat rather than a panel within it, the
@@ -122,7 +138,7 @@ export function AgentChatHistory({
         )}
       </div>
 
-      <RailFooter threads={threads} onExport={onExport} />
+      <RailFooter threads={threads} onExport={onExport} onLogout={onLogout} settingsHref={settingsHref} />
     </aside>
   ));
 }
@@ -138,16 +154,15 @@ export function AgentChatHistory({
 function RailFooter({
   threads,
   onExport,
-}: {
-  threads: ChatThreadSummary[];
-  onExport: () => void;
-}) {
+  onLogout,
+  settingsHref,
+}: Pick<AgentChatHistoryProps, "threads" | "onExport" | "onLogout" | "settingsHref">) {
   const localize = useTemplateCopy();
   const count = threads.length;
   const label = count === 0 ? "暂无可导出的对话" : `导出 ${count} 个对话`;
   return localize((
     <div className="mt-auto flex items-center gap-1 border-t border-separator-border pt-3 pe-1">
-      <AccountMenu threads={threads} />
+      <AccountMenu threads={threads} onLogout={onLogout} settingsHref={settingsHref} />
       <button
         type="button"
         onClick={onExport}
@@ -178,7 +193,7 @@ const STORAGE_BUDGET_BYTES = 5 * 1024 * 1024;
  * browser's storage they occupy — rather than invented percentages, so the row
  * still means something once this ships inside someone else's app.
  */
-function AccountMenu({ threads }: { threads: ChatThreadSummary[] }) {
+function AccountMenu({ threads, onLogout, settingsHref }: Pick<AgentChatHistoryProps, "threads" | "onLogout" | "settingsHref">) {
   const localize = useTemplateCopy();
   const [isOpen, setIsOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
@@ -188,7 +203,8 @@ function AccountMenu({ threads }: { threads: ChatThreadSummary[] }) {
   const base = useStarterBase();
   const logOut = () => {
     close();
-    router.push(`${base}/login`);
+    if (onLogout) onLogout();
+    else router.push(`${base}/login`);
   };
 
   const chatPercent = Math.min(100, Math.round((threads.length / THREAD_CAPACITY) * 100));
@@ -272,24 +288,27 @@ function AccountMenu({ threads }: { threads: ChatThreadSummary[] }) {
               邀请朋友
             </span>
           </DropdownItem>
-          <DropdownItem onSelect={close} className="px-2 py-1.5">
+          <IntentLink href={settingsHref ?? `${base}/settings`} onClick={close} className={cx(MENU_ITEM, MENU_ITEM_INTERACTIVE, "px-2 py-1.5")}>
             <RiSettings3Line className="size-[18px] shrink-0 text-foreground-icon-secondary" aria-hidden />
             <span className="truncate text-body-medium whitespace-nowrap text-text-primary">
               设置
             </span>
-          </DropdownItem>
+          </IntentLink>
         </DropdownGroup>
 
-        <DropdownDivider />
-
-        <DropdownGroup>
-          <DropdownItem onSelect={logOut} className="px-2 py-1.5">
-            <RiLogoutBoxRLine className="size-[18px] shrink-0 text-foreground-icon-secondary" aria-hidden />
-            <span className="truncate text-body-medium whitespace-nowrap text-text-primary">
-              退出登录
-            </span>
-          </DropdownItem>
-        </DropdownGroup>
+        {onLogout !== null && (
+          <>
+            <DropdownDivider />
+            <DropdownGroup>
+              <DropdownItem onSelect={logOut} className="px-2 py-1.5">
+                <RiLogoutBoxRLine className="size-[18px] shrink-0 text-foreground-icon-secondary" aria-hidden />
+                <span className="truncate text-body-medium whitespace-nowrap text-text-primary">
+                  退出登录
+                </span>
+              </DropdownItem>
+            </DropdownGroup>
+          </>
+        )}
       </DropdownPopover>
     </Dropdown>
   ));
@@ -344,9 +363,17 @@ function ThreadRow({
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(thread.title);
   const inputRef = useRef<HTMLInputElement>(null);
+  const rowRef = useRef<HTMLButtonElement>(null);
+  const restoreRowFocus = useRef(false);
 
-  useEffect(() => {
-    if (!renaming) return;
+  useLayoutEffect(() => {
+    if (!renaming) {
+      if (restoreRowFocus.current) {
+        restoreRowFocus.current = false;
+        rowRef.current?.focus({ preventScroll: true });
+      }
+      return;
+    }
     inputRef.current?.focus();
     inputRef.current?.select();
   }, [renaming]);
@@ -358,15 +385,17 @@ function ThreadRow({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     if (event.key === "Enter") {
       event.preventDefault();
       commit();
-    }
-    if (event.key === "Escape") {
+    } else if (event.key === "Escape") {
       event.preventDefault();
       setDraft(thread.title);
       setRenaming(false);
-    }
+    } else return;
+    // Restore the replaced input's focus only for a keyboard finish, never on blur.
+    restoreRowFocus.current = true;
   };
 
   if (renaming) {
@@ -402,6 +431,7 @@ function ThreadRow({
       )}
     >
       <button
+        ref={rowRef}
         type="button"
         onClick={() => onSelect(thread.id)}
         disabled={disabled}
@@ -431,7 +461,7 @@ function ThreadRow({
           load-bearing part: closing the menu with the pointer hands focus back
           to the trigger, and `focus-within` would keep the icon lit on top of
           the age that has already returned. */}
-      <span className="group/slot relative flex size-7 shrink-0 items-center justify-center pe-1">
+      <span className="group/slot relative flex h-7 min-w-7 shrink-0 whitespace-nowrap items-center justify-center pe-1">
         <span
           aria-hidden={menuOpen}
           className={cx(
@@ -441,7 +471,7 @@ function ThreadRow({
               : "opacity-100 group-hover/row:opacity-0 group-has-[:focus-visible]/slot:opacity-0",
           )}
         >
-          {relativeTime(thread.updatedAt)}
+          {formatChatAge(thread.updatedAt)}
         </span>
 
         <span
@@ -457,6 +487,8 @@ function ThreadRow({
         >
           <RowMenu
             title={thread.title}
+            unread={Boolean(thread.unread)}
+            disabled={disabled}
             isOpen={menuOpen}
             onOpenChange={setMenuOpen}
             onRename={() => {
@@ -476,6 +508,8 @@ function ThreadRow({
  *  IconButton inside it would nest one button in another. */
 function RowMenu({
   title,
+  unread,
+  disabled,
   isOpen,
   onOpenChange,
   onRename,
@@ -483,6 +517,8 @@ function RowMenu({
   onDelete,
 }: {
   title: string;
+  unread: boolean;
+  disabled: boolean;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onRename: () => void;
@@ -498,6 +534,7 @@ function RowMenu({
   return localize((
     <Dropdown isOpen={isOpen} onOpenChange={onOpenChange}>
       <DropdownTrigger
+        isDisabled={disabled}
         aria-label={`${title}的更多操作`}
         className={cx(
           "inline-flex size-6 shrink-0 items-center justify-center rounded-md",
@@ -520,7 +557,7 @@ function RowMenu({
           </DropdownItem>
           <DropdownItem onSelect={choose(onToggleUnread)} className="px-2 py-1.5">
             <span className="truncate text-body-medium whitespace-nowrap text-text-primary">
-              标为未读
+              {unread ? "标为已读" : "标为未读"}
             </span>
           </DropdownItem>
           <DropdownItem onSelect={choose(onDelete)} className="px-2 py-1.5">
@@ -530,15 +567,4 @@ function RowMenu({
       </DropdownPopover>
     </Dropdown>
   ));
-}
-
-/** Compact ages for a narrow badge: now, 34m, 5h, 18h, 3d. */
-function relativeTime(at: number) {
-  const seconds = Math.max(0, Math.round((Date.now() - at) / 1000));
-  if (seconds < 60) return "now";
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.round(hours / 24)}d`;
 }

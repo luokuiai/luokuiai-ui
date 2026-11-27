@@ -9,7 +9,7 @@ import {
   RiSparklingLine,
   RiStopFill,
 } from "@remixicon/react";
-import { useRef, type FormEvent, type KeyboardEvent } from "react";
+import { useRef, useState, type FormEvent, type KeyboardEvent, type Ref } from "react";
 
 import { ComposerLoader } from "../composer-loader/composer-loader";
 import { cx } from "../../../utils/cx";
@@ -36,6 +36,7 @@ export interface AgentComposerProps {
   value: string;
   onValueChange: (value: string) => void;
   onSubmit: () => void;
+  formRef?: Ref<HTMLFormElement>;
   onStop: () => void;
   busy: boolean;
   /** Model id reported by the runtime, e.g. "openai/gpt-5-nano". */
@@ -45,9 +46,17 @@ export interface AgentComposerProps {
   className?: string;
 }
 
+/** Uncontrolled input can reset through formRef without rerendering its chat on every key. */
+export interface UncontrolledAgentComposerProps extends Omit<AgentComposerProps, "value" | "onValueChange" | "onSubmit"> {
+  value?: never;
+  onValueChange?: never;
+  onSubmit: (value: string) => void;
+}
+
 export function AgentComposer({
   value,
   onValueChange,
+  formRef,
   onSubmit,
   onStop,
   busy,
@@ -55,19 +64,26 @@ export function AgentComposer({
   provider,
   messageCount,
   className,
-}: AgentComposerProps) {
+}: AgentComposerProps | UncontrolledAgentComposerProps) {
   const localize = useTemplateCopy();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [hasDraft, setHasDraft] = useState(false);
+  const hasText = value === undefined ? hasDraft : value.trim().length > 0;
+
+  const submitText = (text: string) => {
+    if (value === undefined) onSubmit(text);
+    else onSubmit();
+  };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    onSubmit();
+    submitText(inputRef.current?.value ?? "");
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) {
       event.preventDefault();
-      onSubmit();
+      submitText(event.currentTarget.value);
     }
   };
 
@@ -80,7 +96,9 @@ export function AgentComposer({
             neutral-900 in dark), so a single token works without a dark
             override. Its controls then step back down to secondary. */}
         <form
+          ref={formRef}
           onSubmit={submit}
+          onReset={() => setHasDraft(false)}
           className={cx(
             "flex h-[52px] w-full items-center gap-2.5 rounded-full p-2",
             // ComposerLoader paints its own pill surface and runs the light
@@ -98,7 +116,9 @@ export function AgentComposer({
           <button
             type="button"
             aria-label="添加附件"
-            className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-ai-chat-composer-add-background text-foreground-icon-primary transition-colors duration-150 ease hover:bg-ai-chat-composer-add-hover-background"
+            disabled
+            title="当前对话暂不支持附件"
+            className="flex size-9 shrink-0 cursor-not-allowed items-center justify-center rounded-full bg-ai-chat-composer-add-background text-foreground-icon-secondary opacity-50"
           >
             <RiAttachment2 className="size-5" aria-hidden />
           </button>
@@ -111,7 +131,10 @@ export function AgentComposer({
             ref={inputRef}
             type="text"
             value={value}
-            onChange={(event) => onValueChange(event.target.value)}
+            onChange={(event) => {
+              if (onValueChange) onValueChange(event.currentTarget.value);
+              else setHasDraft(event.currentTarget.value.trim().length > 0);
+            }}
             onKeyDown={onKeyDown}
             placeholder="输入你的问题"
             autoComplete="off"
@@ -134,7 +157,11 @@ export function AgentComposer({
             {busy ? (
               <button
                 type="button"
-                onClick={onStop}
+                onClick={(event) => {
+                  // Stopping can turn this same DOM node back into a submit button before the click completes.
+                  event.preventDefault();
+                  onStop();
+                }}
                 aria-label="停止回复"
                 className="flex size-9 cursor-pointer items-center justify-center rounded-full bg-background-secondary-default text-foreground-icon-secondary transition-colors hover:bg-background-secondary-hover"
               >
@@ -144,7 +171,7 @@ export function AgentComposer({
               <button
                 type="submit"
                 aria-label="发送消息"
-                disabled={value.trim().length === 0}
+                disabled={!hasText}
                 className="flex size-9 cursor-pointer items-center justify-center rounded-full bg-button-primary text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <RiArrowUpLine className="size-5" aria-hidden />

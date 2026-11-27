@@ -1,32 +1,39 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import { RiArrowRightSLine, RiSearchLine } from "@remixicon/react";
 import { AreaChartCard } from "../../application/charts/area-chart-card";
-import { BarListCard } from "../../application/charts/bar-list-card";
-import { ComboChartCard } from "../../application/charts/combo-chart-card";
-import { FunnelChartCard } from "../../application/charts/funnel-chart-card";
-import { HeatmapChartCard } from "../../application/charts/heatmap-chart-card";
-import { RadarChartCard } from "../../application/charts/radar-chart-card";
-import { RadialChartCard } from "../../application/charts/radial-chart-card";
-import { SankeyChartCard } from "../../application/charts/sankey-chart-card";
-import { ScatterChartCard } from "../../application/charts/scatter-chart-card";
-import { StageBarsCard } from "../../application/charts/stage-bars-card";
-import { ContributionsCard } from "../../application/dashboard/contributions-card";
-import { EarningsChartCard } from "../../application/dashboard/earnings-chart-card";
-import { LineChartCard } from "../../application/dashboard/line-chart-card";
-import { OrdersChartCard } from "../../application/dashboard/orders-chart-card";
-import { RevenueChartCard } from "../../application/dashboard/revenue-chart-card";
-import { ActivityRingsCard } from "../../application/medical/activity-rings-card";
 import type { SelectedDay } from "../../application/medical/medical-data";
-import { MostActiveDaysCard } from "../../application/medical/most-active-days-card";
-import { SleepScoreCard } from "../../application/medical/sleep-score-card";
-import { StepsCard } from "../../application/medical/steps-card";
 import { Button } from "../../base/buttons/button";
 import { Input } from "../../base/input/input";
 import { WorkspaceDemoCopy } from "../templates/demo-copy";
 import { cx } from "../../../utils/cx";
+
+// The directory shows one chart at a time. Keep the default area chart ready
+// and request a specialized chart only when the visitor actually opens it.
+const BarListCard = lazy(() => import("../../application/charts/bar-list-card").then(module => ({ default: module.BarListCard })));
+const ComboChartCard = lazy(() => import("../../application/charts/combo-chart-card").then(module => ({ default: module.ComboChartCard })));
+const FunnelChartCard = lazy(() => import("../../application/charts/funnel-chart-card").then(module => ({ default: module.FunnelChartCard })));
+const HeatmapChartCard = lazy(() => import("../../application/charts/heatmap-chart-card").then(module => ({ default: module.HeatmapChartCard })));
+const RadarChartCard = lazy(() => import("../../application/charts/radar-chart-card").then(module => ({ default: module.RadarChartCard })));
+const RadialChartCard = lazy(() => import("../../application/charts/radial-chart-card").then(module => ({ default: module.RadialChartCard })));
+const SankeyChartCard = lazy(() => import("../../application/charts/sankey-chart-card").then(module => ({ default: module.SankeyChartCard })));
+const ScatterChartCard = lazy(() => import("../../application/charts/scatter-chart-card").then(module => ({ default: module.ScatterChartCard })));
+const StageBarsCard = lazy(() => import("../../application/charts/stage-bars-card").then(module => ({ default: module.StageBarsCard })));
+const ContributionsCard = lazy(() => import("../../application/dashboard/contributions-card").then(module => ({ default: module.ContributionsCard })));
+const EarningsChartCard = lazy(() => import("../../application/dashboard/earnings-chart-card").then(module => ({ default: module.EarningsChartCard })));
+const LineChartCard = lazy(() => import("../../application/dashboard/line-chart-card").then(module => ({ default: module.LineChartCard })));
+const OrdersChartCard = lazy(() => import("../../application/dashboard/orders-chart-card").then(module => ({ default: module.OrdersChartCard })));
+const RevenueChartCard = lazy(() => import("../../application/dashboard/revenue-chart-card").then(module => ({ default: module.RevenueChartCard })));
+const ActivityRingsCard = lazy(() => import("../../application/medical/activity-rings-card").then(module => ({ default: module.ActivityRingsCard })));
+const MostActiveDaysCard = lazy(() => import("../../application/medical/most-active-days-card").then(module => ({ default: module.MostActiveDaysCard })));
+const SleepScoreCard = lazy(() => import("../../application/medical/sleep-score-card").then(module => ({ default: module.SleepScoreCard })));
+const StepsCard = lazy(() => import("../../application/medical/steps-card").then(module => ({ default: module.StepsCard })));
+
+function ChartLoading() {
+  return <p role="status" className="text-body-regular text-text-secondary">正在加载图表…</p>;
+}
 
 function ChartVariants<T extends string>({ options, children }: { options: readonly (readonly [T, string])[]; children: (variant: T) => ReactNode }) {
   const [variant, setVariant] = useState(options[0][0]);
@@ -81,6 +88,12 @@ const chartGroups = [
 ];
 const charts = chartGroups.flatMap((group) => group.items);
 
+export function ChartPreview({ id }: { id: string }) {
+  const chart = charts.find((item) => item.id === id);
+  if (!chart) throw new Error("图表演示缺失：" + id);
+  return <Suspense fallback={<ChartLoading />}><WorkspaceDemoCopy>{chart.render()}</WorkspaceDemoCopy></Suspense>;
+}
+
 export function ChartGallery() {
   const selectedId = useSearchParams().get("chart");
   const [query, setQuery] = useState("");
@@ -124,7 +137,9 @@ export function ChartGallery() {
             <p className="text-body-regular text-text-secondary">{selected.description}</p>
           </div>
         </div>
-        <WorkspaceDemoCopy key={selected.id}>{selected.render()}</WorkspaceDemoCopy>
+        <Suspense key={selected.id} fallback={<ChartLoading />}>
+          <WorkspaceDemoCopy>{selected.render()}</WorkspaceDemoCopy>
+        </Suspense>
       </section>
     </div>
   );

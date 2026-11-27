@@ -8,17 +8,18 @@ import { motion } from "motion/react";
 import {
   RiCollapseDiagonalLine,
   RiDownload2Line,
-  RiExpandDiagonalSLine,
   RiGalleryLine,
   RiImageAddLine,
   RiMore2Fill,
-  RiSideBarLine,
   RiSparkling2Line,
 } from "@remixicon/react";
-import { Focusable } from "react-aria-components";
 import { PillTab, PillTabList } from "../../base/tabs/pill-tab";
-import { Tooltip, TooltipTrigger } from "../../base/tooltip/tooltip";
 import { cx } from "../../../utils/cx";
+import { PanelAction, PanelExpandButton, usePanelExpansion, type PanelExpandProps } from "./panel-action";
+import galleryThumbnails from "./gallery-previews.json";
+
+// Tiny WebP copies of the local artwork fill the tile during the full image's first decode.
+const thumbnailById: Readonly<Record<string, string>> = galleryThumbnails;
 
 /**
  * Right-hand panel for the image-generation template — the gallery
@@ -142,34 +143,6 @@ function distribute(items: Generation[], columnCount = 3): Placed[][] {
   return columns;
 }
 
-/** Header action — matches the code panel's icon buttons exactly. */
-function PanelAction({
-  icon: Icon,
-  label,
-}: {
-  icon: typeof RiSideBarLine;
-  label: string;
-}) {
-  const localize = useTemplateCopy();
-  return localize((
-    <TooltipTrigger delay={200}>
-      <Focusable>
-        <button
-          type="button"
-          aria-label={label}
-          className="group flex cursor-pointer items-center rounded-md p-0.5 transition-colors duration-150 ease hover:bg-background-primary-hover"
-        >
-          <Icon
-            className="size-[18px] text-foreground-icon-secondary transition-colors duration-150 ease group-hover:text-foreground-icon-primary"
-            aria-hidden
-          />
-        </button>
-      </Focusable>
-      <Tooltip size="sm">{label}</Tooltip>
-    </TooltipTrigger>
-  ));
-}
-
 /** One generation: a tile at its own aspect ratio (that variance is what
  *  makes the masonry flow), with a hover scrim carrying quick actions and
  *  the prompt revealed along the bottom. `break-inside-avoid` keeps a tile
@@ -205,6 +178,7 @@ function GenerationTile({
   const localize = useTemplateCopy();
   const ease = [0.22, 1, 0.36, 1] as const;
   const delay = isNew ? 0 : order * 0.13;
+  const thumbnail = thumbnailById[generation.id];
 
   return localize((
     <motion.figure
@@ -270,6 +244,7 @@ function GenerationTile({
             alt={generation.prompt}
             fill
             sizes={isExpanded ? "400px" : "140px"}
+            placeholder={thumbnail ? `data:image/webp;base64,${thumbnail}` : "empty"}
             className={cx(
               "object-cover transition-transform duration-300 ease-out",
               // The lift-on-hover is a grid affordance; once a tile is
@@ -362,15 +337,21 @@ export function AiChatGalleryPanel({
   className,
   width = 410,
   generated,
-}: {
+  animateOnEntry = false,
+  isExpanded,
+  onToggleExpand,
+}: Partial<PanelExpandProps> & {
   className?: string;
   width?: CSSProperties["width"];
+  animateOnEntry?: boolean;
   /** Freshly generated images, newest first — they land at the top-left of
    *  the wall and push the rest of that column down. */
   generated?: Generation[];
 } = {}) {
+  const panel = usePanelExpansion(width, isExpanded, onToggleExpand);
   const localize = useTemplateCopy();
   const [tab, setTab] = useState<"gallery" | "styles">("gallery");
+  const [animateWall, setAnimateWall] = useState(animateOnEntry);
 
   // Generated images are pinned to the head of column 0 rather than fed
   // through `distribute`, so a new one always lands top-left no matter how
@@ -447,7 +428,7 @@ export function AiChatGalleryPanel({
 
   return localize((
     <aside
-      style={{ width, minWidth: width, maxWidth: width, flexBasis: width }}
+      style={{ width: panel.width, minWidth: panel.width, maxWidth: panel.width, flexBasis: panel.width }}
       className={cx("flex h-full shrink-0 flex-col gap-2.5 overflow-hidden pt-2", className)}
     >
       {/* Tab switcher + panel actions — identical rhythm to the code panel */}
@@ -460,7 +441,10 @@ export function AiChatGalleryPanel({
             // the sparkle beside it. 18px makes the pair look equal.
             className="[&_svg]:size-[18px]"
             isSelected={tab === "gallery"}
-            onSelect={() => setTab("gallery")}
+            onSelect={() => {
+              if (tab === "styles") setAnimateWall(true);
+              setTab("gallery");
+            }}
           >
             画廊
           </PillTab>
@@ -470,8 +454,7 @@ export function AiChatGalleryPanel({
         </PillTabList>
         <div className="flex items-center gap-2 pe-px">
           <PanelAction icon={RiImageAddLine} label="新建生成" />
-          <PanelAction icon={RiExpandDiagonalSLine} label="展开面板" />
-          <PanelAction icon={RiSideBarLine} label="切换面板" />
+          <PanelExpandButton isExpanded={panel.isExpanded} onToggleExpand={panel.onToggleExpand} />
         </div>
       </div>
 
@@ -512,7 +495,7 @@ export function AiChatGalleryPanel({
                       generation={generation}
                       isNew={generatedIds.has(generation.id)}
                       order={generation.order}
-                      skipEntrance={toggled.has(generation.id)}
+                      skipEntrance={toggled.has(generation.id) || (!animateWall && !generatedIds.has(generation.id))}
                       isFlying={flying.has(generation.id)}
                       onToggle={() => toggleExpanded(generation.id)}
                       onSettled={() => settle(generation.id)}

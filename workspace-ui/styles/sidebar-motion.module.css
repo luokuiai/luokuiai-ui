@@ -1,0 +1,86 @@
+.timing,
+.pushSidebar,
+.pushBackdrop,
+.modalBackdrop,
+.modalSidebar,
+.modalSidebarEnd {
+  transition-duration: var(--sidebar-motion-duration);
+  transition-timing-function: var(--sidebar-motion-ease);
+}
+
+/* Keep the panel visible through the last frame of a close. Shells can
+   disable these transitions during a resize, drag or initial restoration. */
+.dockWidth,
+.fadeVisibility {
+  transition-duration: var(--sidebar-transition-duration, var(--sidebar-motion-duration));
+  transition-timing-function: var(--sidebar-motion-ease), linear;
+}
+
+.dockWidth {
+  transition-property: width, visibility;
+}
+
+.fadeVisibility {
+  transition-property: opacity, visibility;
+}
+
+.pushSidebar {
+  opacity: 0;
+  scale: .94;
+  transition-property: opacity, scale;
+}
+
+.pushSidebar[data-nav-open] {
+  opacity: 1;
+  scale: 1;
+}
+
+.pushContent {
+  --sidebar-push-transitions: transform 0s, border-radius 0s;
+  transition: var(--sidebar-push-transitions);
+}
+
+@media (width < 64rem) {
+  .pushContent {
+    --sidebar-push-transitions:
+      transform var(--sidebar-motion-duration) var(--sidebar-motion-ease),
+      border-radius var(--sidebar-motion-duration) var(--sidebar-motion-ease);
+  }
+
+  .pushContent[data-nav-open] {
+    border-radius: 32px;
+    transform: translateX(calc(272px * var(--sidebar-inline-sign, 1)));
+  }
+}
+
+.pushBackdrop {
+  opacity: 0;
+  transition-property: opacity;
+}
+
+.pushBackdrop[data-nav-open] {
+  opacity: 1;
+}
+
+.modalBackdrop {
+  transition-property: opacity;
+}
+
+.modalBackdrop[data-entering],
+.modalBackdrop[data-exiting] {
+  opacity: 0;
+}
+
+.modalSidebar,
+.modalSidebarEnd {
+  transition-property: transform;
+}
+
+.modalSidebar[data-entering],
+.modalSidebar[data-exiting] {
+  transform: translateX(calc((-100% - 12px) * var(--sidebar-inline-sign, 1)));
+}
+
+.modalSidebarEnd:is([data-entering], [data-exiting]) {
+  transform: translateX(calc((100% + 12px) * var(--sidebar-inline-sign, 1)));
+}

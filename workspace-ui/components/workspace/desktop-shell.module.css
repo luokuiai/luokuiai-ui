@@ -1,0 +1,139 @@
+.shell {
+  --desktop-toolbar-height: 48px;
+  --desktop-rail-width: 60px;
+  --desktop-surface: var(--color-background-full);
+  --desktop-soft: var(--color-background-secondary-default);
+  --desktop-line: var(--color-separator-border);
+  --desktop-hover: var(--color-background-secondary-hover);
+  --desktop-mute: var(--color-foreground-icon-secondary);
+  --desktop-timing: var(--sidebar-motion-duration, 280ms) var(--sidebar-motion-ease, ease-in-out);
+  display: flex;
+  flex-direction: column;
+  container: luokui-desktop-shell / inline-size;
+  isolation: isolate;
+  height: 100dvh;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--desktop-surface);
+  color: var(--color-text-primary);
+}
+.toolbar {
+  z-index: 40;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex: 0 0 var(--desktop-toolbar-height);
+  gap: 12px;
+  min-width: 0;
+  padding-left: var(--desktop-light-inset, 14px);
+  padding-right: 16px;
+  background: var(--desktop-surface);
+  box-shadow: inset 0 -1px var(--desktop-line);
+  user-select: none;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+.shell[data-titlebar-layout="B"] .toolbar { background: color-mix(in srgb, var(--desktop-surface) 52%, var(--desktop-soft)); }
+.toolbar :is(a, button), .rail a { -webkit-app-region: no-drag; app-region: no-drag; }
+.shell :is(.toolbar, .rail, .fallback) :is(button, a):focus-visible {
+  outline: 2px solid var(--color-border-focus-ring);
+  outline-offset: 2px;
+}
+.leading, .brand, .actions, .tabs { display: flex; align-items: center; }
+.leading { flex: 1; min-width: 0; height: 100%; gap: 15px; }
+.actions { gap: 5px; }
+.brand { gap: 8px; border-radius: 6px; padding: 4px; margin-inline-start: -4px; color: inherit; text-decoration: none; }
+.brand img { width: 20px; height: 20px; object-fit: contain; }
+.brand strong { white-space: nowrap; font-size: 13px; line-height: 18px; font-weight: 650; letter-spacing: -.025em; }
+.divider { flex: 0 0 1px; height: 16px; background: var(--desktop-line); }
+.page { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 20px; font-weight: 580; }
+.page > span { color: var(--color-text-tertiary); font-weight: 400; }
+.tabs { gap: 2px; min-width: 0; }
+.tabs :is(a, span, button) {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding-inline: 10px; border-radius: 6px;
+  font-size: 12px; line-height: 16px; white-space: nowrap; text-decoration: none; color: var(--color-text-secondary);
+}
+.tabs svg { width: 15px; height: 15px; }
+.tabs [aria-current], .tabs > :is(span, button) { background: var(--desktop-soft); color: inherit; font-weight: 600; }
+.tabs > :is(span, button) { border: 0; display: block; overflow: hidden; text-overflow: ellipsis; line-height: 28px; }
+.tool, .rightSlot [data-workspace-right-sidebar-toggle] {
+  display: inline-grid; place-items: center; flex: 0 0 30px;
+  width: 30px; height: 29px; padding: 0; border: 0; border-radius: 7px;
+  color: var(--desktop-mute); background: transparent; cursor: pointer;
+}
+.tool svg { width: 17px; height: 17px; }
+.tool:hover, .brand:hover, .tabs :is(a, button):hover, .rail a:hover, .fallback a:hover, .rightSlot [data-workspace-right-sidebar-toggle]:hover {
+  background-color: var(--desktop-hover); color: var(--color-text-primary);
+}
+.tool:active, .rightSlot [data-workspace-right-sidebar-toggle]:active { opacity: .65; }
+.glyph, .rightSlot [data-workspace-right-sidebar-toggle]::before {
+  content: ""; display: block; width: 17px; height: 17px;
+  background-color: currentColor; mask: url("../../public/icons/sidebar.svg") center / contain no-repeat;
+}
+.rightSlot { display: contents; }
+.rightSlot [data-workspace-right-sidebar-toggle] svg { display: none; }
+.rightSlot [data-workspace-right-sidebar-toggle]:dir(ltr)::before, .glyph:dir(rtl) { scale: -1 1; }
+.body { display: flex; flex: 1; min-height: 0; }
+.rail, .fallback {
+  display: flex; flex-direction: column; overflow: auto; scrollbar-width: none;
+  background: var(--desktop-soft); flex: none; min-width: 0;
+}
+.rail {
+  align-items: center; gap: 3px; width: 0; padding-block: 10px; overflow-x: clip;
+  box-shadow: inset -1px 0 var(--desktop-line);
+}
+.rail:dir(rtl) { box-shadow: inset 1px 0 var(--desktop-line); }
+.shell[data-titlebar-layout="C"] .rail { width: var(--desktop-rail-width); }
+.railLink, .railBrand {
+  display: grid; flex: 0 0 33px; place-items: center;
+  width: 35px; border-radius: 8px; color: var(--desktop-mute); text-decoration: none;
+}
+.railBrand { margin-bottom: 7px; }
+.railBrand img { width: 23px; height: 23px; }
+.railLink svg, .fullLink svg { width: 17px; height: 17px; flex: none; }
+.railLink[data-divider] { position: relative; margin-block-start: 9px; }
+.railLink[data-divider]::before { content: ""; position: absolute; inset-block-start: -6px; width: 23px; height: 1px; background: var(--desktop-line); }
+.railLink[aria-current], .fullLink[aria-current] { color: var(--color-accent-600); background: color-mix(in srgb, var(--color-accent-500) 12%, var(--desktop-surface)); }
+.fallback { width: 228px; gap: 4px; padding-block: 16px; overflow-x: clip; }
+.fullLink { display: flex; align-items: center; flex: none; gap: 12px; height: 36px; margin-inline: 12px; padding-inline: 12px; border-radius: 8px; text-decoration: none; color: var(--color-text-secondary); white-space: nowrap; font-size: 14px; }
+.shell[data-titlebar-layout="C"] .fallback { width: 0; }
+.body:has(.stage :is([data-titlebar-sidebar="desktop"], :global(.workspace-multi-agent) > div:first-child > aside)) .fallback { display: none; }
+.stage { --template-preview-height: calc(100dvh - var(--desktop-toolbar-height)); flex: 1; min-width: 0; min-height: 0; overflow: auto; }
+.stage [data-titlebar-header], .stage [data-titlebar-page="workspace"] > div > nav[aria-label="组件与管理"],
+.stage [data-titlebar-sidebar="desktop"] :is(button[aria-label="收起侧栏"], button[aria-label="展开侧栏"]) { display: none !important; }
+.stage [data-titlebar-page="workspace"] { min-height: 100%; }
+.stage [data-titlebar-page="workspace"] > [data-titlebar-sidebar="desktop"] { top: 0; height: var(--template-preview-height); padding-block-start: 20px; background: var(--desktop-soft); }
+.stage [data-titlebar-page="workspace"] > [data-titlebar-sidebar="desktop"] > div:first-child { display: none; }
+.stage :is(:global(.workspace-template), [data-titlebar-page]:global(.h-dvh)), .stage > :global(.h-dvh) { height: 100%; }
+.stage :global(.workspace-template) :global(.h-dvh) { height: 100%; }
+.shell[data-titlebar-layout="C"]:not([data-nav-motion]) .stage :is([data-titlebar-sidebar="desktop"], :global(.workspace-multi-agent) > div:first-child:has(> aside), :has(> [data-titlebar-sidebar="desktop"]:only-child)) { display: none !important; }
+.shell[data-titlebar-layout="C"] .stage :is([data-titlebar-sidebar="desktop"], :global(.workspace-multi-agent) > div:first-child > aside) { interactivity: inert; pointer-events: none; }
+.shell[data-nav-motion] .stage [data-nav-column] {
+  margin-inline-end: var(--desktop-column-end); clip-path: inset(0);
+}
+.shell[data-nav-motion][data-titlebar-layout="C"] .stage [data-nav-column] {
+  margin-inline-end: var(--desktop-column-hidden); clip-path: inset(0 100% 0 0);
+}
+.shell[data-nav-motion][data-titlebar-layout="C"] .stage [data-nav-column]:dir(rtl) { clip-path: inset(0 0 0 100%); }
+@media (prefers-reduced-motion: no-preference) {
+  .shell[data-nav-motion="running"] :is(.rail, .fallback) { transition: width var(--desktop-timing); }
+  .shell[data-nav-motion="running"] .stage [data-nav-column] { transition: margin-inline-end var(--desktop-timing), clip-path var(--desktop-timing); }
+  .tool, .rightSlot [data-workspace-right-sidebar-toggle] { transition: opacity 120ms ease-out; }
+}
+@container luokui-desktop-shell (max-width: 1023px) {
+  .shell .stage [data-titlebar-sidebar="desktop"] { display: flex; width: clamp(156px, 21cqw, 216px); }
+  .shell .stage :global(.hidden):has(> [data-titlebar-sidebar="desktop"]:only-child) { display: block; }
+  .shell .fallback { width: clamp(156px, 21cqw, 216px); }
+}
+@media (max-height: 735px) { .railLink { flex-basis: 30px; } .railBrand { margin-bottom: 1px; } }
+
+/* Desktop B owns the left navigation when it is actually displayed. On a
+   phone the page keeps its original drawer, including the conversation picker. */
+@container luokui-desktop-shell (min-width: 768px) {
+  .shell[data-titlebar-layout="B"] .stage:has(:is([data-titlebar-sidebar="desktop"], :global(.workspace-multi-agent) > div:first-child > aside))
+    :is(button[aria-label="打开导航"], button[aria-label="打开会话列表"], button[aria-label="Open navigation"]) { display: none !important; }
+}
+@container luokui-desktop-shell (max-width: 767px) {
+  .shell .stage [data-titlebar-page="template"] :is([data-titlebar-sidebar="desktop"], :has(> [data-titlebar-sidebar="desktop"]:only-child)) { display: none !important; }
+}

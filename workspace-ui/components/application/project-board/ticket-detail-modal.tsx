@@ -18,12 +18,11 @@ import { Dropdown, DropdownItem, DropdownPopover, DropdownTrigger } from "../../
 import { Select, SelectItem } from "../../base/select/select";
 import { Textarea } from "../../base/textarea/textarea";
 import { Tooltip, TooltipTrigger } from "../../base/tooltip/tooltip";
+import sidebarMotion from "../../../styles/sidebar-motion.module.css";
 import { cx } from "../../../utils/cx";
 import { PROJECT_MEMBERS, type ProjectColumn, type ProjectTicket, type TicketPriority } from "./project-board-data";
 import { ticketBrief, ticketDemoActivity } from "./ticket-detail-data";
-import { TicketCornerGenieSurface } from "./ticket-corner-genie-surface";
 import { TicketAssigneeIcon, TicketFavoriteIcon, TicketStatusIcon } from "./project-board-icons";
-import styles from "./ticket-detail-modal.module.css";
 
 const PRIORITIES: TicketPriority[] = ["Low", "Medium", "High", "Urgent"];
 const PRIORITY_COLORS = { Low: "blue", Medium: "yellow", High: "orange", Urgent: "rose" } as const;
@@ -69,8 +68,9 @@ function PropertySelect({ label, value, options, onChange, renderValue, chip = f
 }
 
 /** Figma 4509:12272 — private detail panel bundled with the Project Board. */
-export function TicketDetailModal({ isOpen, ticket, column, columns, onClose, onUpdate, onMove }: {
+export function TicketDetailModal({ isOpen, dialogRef, ticket, column, columns, onClose, onUpdate, onMove }: {
   isOpen: boolean;
+  dialogRef?: (node: HTMLElement | null) => void;
   ticket: ProjectTicket;
   column: ProjectColumn;
   columns: ProjectColumn[];
@@ -129,10 +129,9 @@ export function TicketDetailModal({ isOpen, ticket, column, columns, onClose, on
 
   return localize((
     <ModalOverlay dir={direction} isOpen={isOpen} onOpenChange={(open) => !open && onClose()} isDismissable
-      className="fixed inset-0 z-100 flex items-stretch justify-end overflow-hidden p-3 max-sm:p-2">
-      <Modal className={cx("h-full w-full max-w-[609px] outline-none", styles.panel)}>
-        <TicketCornerGenieSurface exiting={!isOpen}>
-        <Dialog aria-label={`${ticket.code} 工单详情`} className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl bg-ticket-detail-surface outline-none">
+      className={cx(sidebarMotion.modalBackdrop, "fixed inset-0 z-100 flex items-stretch justify-end overflow-hidden p-3 max-sm:p-2")}>
+      <Modal className={cx(sidebarMotion.modalSidebarEnd, "h-full w-full max-w-[609px] rounded-3xl shadow-[-10px_0_34px_rgb(0_0_0/0.05),-10px_0_250px_rgb(0_0_0/0.25)] outline-none data-exiting:pointer-events-none")}>
+        <Dialog ref={dialogRef} aria-label={`${ticket.code} 工单详情`} className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl bg-ticket-detail-surface outline-none">
           <header className="flex shrink-0 items-center justify-between gap-3 px-6 pt-6 pb-5 max-sm:px-4 max-sm:pt-4">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <div className="flex min-w-0 items-center gap-0.5 text-body-2-medium text-text-secondary">
@@ -291,7 +290,6 @@ export function TicketDetailModal({ isOpen, ticket, column, columns, onClose, on
           </div>
           </div>
         </Dialog>
-        </TicketCornerGenieSurface>
       </Modal>
     </ModalOverlay>
   ));

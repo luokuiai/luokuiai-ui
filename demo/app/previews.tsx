@@ -124,7 +124,7 @@ const charts = {
 } satisfies Record<string, [string, ComponentType]>
 
 const templates: Record<string, { name: string; render: ComponentType; attributes?: string }> = {
-  'application/agent-chat/agent-chat': { name: 'AgentChat', render: () => <AgentChat contained />, attributes: ' contained' },
+  'application/agent-chat/agent-chat': { name: 'AgentChat', render: () => <AgentChat contained onLogout={null} settingsHref="/workspace/settings" />, attributes: ' contained onLogout={null} settingsHref="/workspace/settings"' },
   'application/ai-chat/ai-chat-shell': { name: 'AiChatShell', render: () => <AiChatShell contained />, attributes: ' contained' },
   'application/ai-profile/ai-profile-shell': { name: 'AiProfileShell', render: () => <AiProfileShell contained />, attributes: ' contained' },
   'application/dashboard/dashboard-shell': { name: 'DashboardShell', render: () => <DashboardShell contained />, attributes: ' contained' },

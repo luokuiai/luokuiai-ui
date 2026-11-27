@@ -8,6 +8,7 @@ import { AgentThinkingPreview, DataTablePreview, DropdownPreview, FileUploadPrev
 import type { PreviewHref } from "./component-preview-hrefs";
 import { AgentChat } from "../agent-chat/agent-chat";
 import { AuthCard } from "../auth/auth-card";
+import { WorkspaceWordmark } from "../../workspace/brand";
 import { NotificationCenterDemo } from "../notification-center/notification-center-demo";
 import { SettingsGeneral } from "../settings/settings-general";
 import { OrdersChartCard } from "../dashboard/orders-chart-card";
@@ -992,6 +993,7 @@ export const FREE_COMPONENT_PREVIEWS: Partial<Record<PreviewHref, () => React.Re
         layout="inline"
         providers={["google", "apple", "github", "x"]}
         headingLevel={3}
+        logo={<WorkspaceWordmark className="w-36" />}
       />
     </InlineScaled>
   ),
