@@ -8,6 +8,7 @@ import { Chip } from "../../base/badges/chip";
 import { Button } from "../../base/buttons/button";
 import { ChevronDownSmall } from "../../foundations/icons/chevrons";
 import { cx } from "../../../utils/cx";
+import { teamName } from "../../workspace/identity";
 
 /**
  * Figma source: Board UI → dashboard 1 → Frame 125 (node 3731:3042).
@@ -37,7 +38,7 @@ export function RecentHiresCard({ className }: { className?: string }) {
           className="flex cursor-pointer items-center gap-1.5 rounded-2lg px-0.5"
         >
           <span className="text-body-medium whitespace-nowrap text-text-primary">
-            Board team
+            {teamName}
           </span>
           <ChevronDownSmall className="size-4 shrink-0 text-text-secondary" />
         </button>

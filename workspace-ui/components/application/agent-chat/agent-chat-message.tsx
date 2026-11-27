@@ -1,5 +1,6 @@
 "use client";
 
+import { formatChatAge } from "./chat-time";
 import { useTemplateCopy } from "../../foundations/template-copy/template-copy";
 
 import { RiCheckLine, RiFileCopyLine, RiVolumeMuteLine, RiVolumeUpLine } from "@remixicon/react";
@@ -43,7 +44,7 @@ export function AgentMessage({ role, text, streaming = false, at }: AgentMessage
 
   return localize((
     <div className="group/message flex flex-col gap-1 px-1">
-      <StreamedText text={text} />
+      <StreamedText text={text} animate={streaming} />
       <MessageActions text={text} at={at} hidden={streaming} />
     </div>
   ));
@@ -63,7 +64,7 @@ export function AgentMessage({ role, text, streaming = false, at }: AgentMessage
  * snaps. Evenness of the text itself comes from the server, which releases
  * whole words on a steady tick (see `smoothStream` in the route).
  */
-export function StreamedText({ text, paragraphs = false }: { text: string; paragraphs?: boolean }) {
+export function StreamedText({ text, paragraphs = false, animate = true }: { text: string; paragraphs?: boolean; animate?: boolean }) {
   const localize = useTemplateCopy();
   const reduceMotion = useReducedMotion();
   const lines = useMemo(() => text.split(paragraphs ? /\n\s*\n/ : "\n").filter((line) => line.trim() !== ""), [text, paragraphs]);
@@ -71,7 +72,7 @@ export function StreamedText({ text, paragraphs = false }: { text: string; parag
   return localize((
     <div className="flex flex-col gap-3">
       {lines.map((line, index) => (
-        <Line key={index} text={line} animate={!reduceMotion} />
+        <Line key={index} text={line} animate={animate && !reduceMotion} />
       ))}
     </div>
   ));
@@ -97,12 +98,14 @@ const LINE_TRANSITION = { duration: 0.42, ease: [0.22, 0.61, 0.36, 1] } as const
  * the reply, which is wasted work for the lines that are already finished.
  */
 const Line = memo(function Line({ text, animate }: { text: string; animate: boolean }) {
+  const className = "text-body-regular break-words text-text-primary";
+  if (!animate) return <p className={className}>{text}</p>;
   return (
     <motion.p
-      initial={animate ? LINE_HIDDEN : false}
+      initial={LINE_HIDDEN}
       animate={LINE_SHOWN}
       transition={LINE_TRANSITION}
-      className="text-body-regular break-words text-text-primary"
+      className={className}
     >
       {text}
     </motion.p>
@@ -179,7 +182,7 @@ function MessageActions({ text, at, hidden }: { text: string; at?: number; hidde
 
       {at ? (
         <time dateTime={new Date(at).toISOString()} className="ms-1 text-caption-1-regular text-text-tertiary">
-          {formatAgo(at)}
+          {formatChatAge(at)}
         </time>
       ) : null}
     </div>
@@ -207,16 +210,4 @@ function ActionButton({
       {children}
     </button>
   ));
-}
-
-/** "just now", "3 minutes ago", "2 hours ago" — matching how the rail reads. */
-function formatAgo(at: number) {
-  const seconds = Math.max(0, Math.round((Date.now() - at) / 1000));
-  if (seconds < 45) return "just now";
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-  const days = Math.round(hours / 24);
-  return `${days} day${days === 1 ? "" : "s"} ago`;
 }

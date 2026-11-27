@@ -31,7 +31,9 @@ import { ThemeToggle } from "../theme/theme-toggle";
 import { Counter } from "../../base/badges/counter";
 import { CloseButton } from "../../base/buttons/close-button";
 import { Kbd } from "../../base/kbd/kbd";
+import { IntentLink } from "../../workspace/intent-link";
 import { cx } from "../../../utils/cx";
+import navMotion from "../../../styles/sidebar-motion.module.css";
 import { DashboardTeamMenu } from "./dashboard-team-menu";
 import { DashboardUserMenu } from "./dashboard-user-menu";
 
@@ -66,7 +68,7 @@ function Collapsible({ collapsed, children, className }: { collapsed: boolean; c
   return localize((
     <span
       className={cx(
-        "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter] duration-300 ease-in-out",
+        navMotion.timing, "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter]",
         // Expanded, the cap is the row itself: a fixed cap (it was 160px)
         // clipped any label wider than it, "Components and Blocks" included.
         collapsed ? "max-w-0 opacity-0 blur-[3px]" : "max-w-full opacity-100 blur-0",
@@ -86,6 +88,7 @@ function NavItem({
   collapsed = false,
   href = "#",
   onClick,
+  onNavigate,
 }: {
   icon: IconComponent;
   label: string;
@@ -95,11 +98,15 @@ function NavItem({
   href?: string;
   /** Action rows (e.g. Settings → modal) intercept the navigation. */
   onClick?: () => void;
+  onNavigate?: () => void;
 }) {
   const localize = useTemplateCopy();
+  const internal = !onClick && href.startsWith("/") && !href.startsWith("//");
+  const Link = internal ? IntentLink : "a";
   return localize((
-    <a
+    <Link
       href={href}
+      {...(internal && onNavigate ? { onNavigate } : {})}
       onClick={
         onClick
           ? (event) => {
@@ -113,7 +120,7 @@ function NavItem({
       title={collapsed ? label : undefined}
       className={cx(
         "flex items-center justify-between overflow-hidden rounded-2lg p-2",
-        "transition-[width,background-color] duration-300 ease-in-out",
+        navMotion.timing, "transition-[width,background-color]",
         collapsed ? "w-9" : "w-full",
         isSelected
           ? "bg-linear-to-b from-accent-500 to-accent-600 shadow-nav-selected"
@@ -137,7 +144,7 @@ function NavItem({
         </Collapsible>
       </span>
       {badge && <Collapsible collapsed={collapsed}>{badge}</Collapsible>}
-    </a>
+    </Link>
   ));
 }
 
@@ -178,6 +185,7 @@ function NavRows({
   selected,
   collapsed,
   secondaryMatch,
+  onNavigate,
 }: {
   items: DashboardNavItem[];
   query: string;
@@ -185,6 +193,7 @@ function NavRows({
   collapsed: boolean;
   /** Whether Support or Settings matches, so "No results" only shows when nothing does. */
   secondaryMatch: boolean;
+  onNavigate?: () => void;
 }) {
   const localize = useTemplateCopy();
   const shown = items.filter((item) => item.label.toLocaleLowerCase().includes(query));
@@ -199,6 +208,7 @@ function NavRows({
           icon={item.icon}
           label={item.label}
           href={item.href}
+          onNavigate={onNavigate}
           isSelected={isSelected}
           collapsed={collapsed}
           badge={
@@ -246,6 +256,7 @@ export function DashboardSidebar({
   const [suppressUserHover, setSuppressUserHover] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
   const [query, setQuery] = useState("");
+  const sidebarRef = useRef<HTMLElement>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const searchFieldRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -290,6 +301,10 @@ export function DashboardSidebar({
   useEffect(() => {
     const onShortcut = (event: KeyboardEvent) => {
       if (event.key.toLocaleLowerCase() === "l" && (event.metaKey || event.ctrlKey)) {
+        const sidebar = sidebarRef.current;
+        const dialog = event.target instanceof Element ? event.target.closest('[role="dialog"]') : null;
+        if (event.defaultPrevented || event.isComposing || !sidebar?.getClientRects().length
+          || sidebar.closest('[inert],[aria-hidden="true"]') || (dialog && !dialog.contains(sidebar))) return;
         event.preventDefault();
         activateSearch();
       }
@@ -301,12 +316,14 @@ export function DashboardSidebar({
 
   return localize((
     <aside
+      data-titlebar-sidebar={mobile ? undefined : "desktop"}
+      ref={sidebarRef}
       className={cx(
         "flex h-full shrink-0 flex-col justify-between overflow-hidden",
         flat
           ? "bg-background-full"
           : "rounded-3xl border border-border-button-white bg-background-secondary-default shadow-sidebar",
-        "transition-[width] duration-300 ease-in-out",
+        navMotion.timing, "transition-[width]",
         // Collapsed rail keeps the 60px spec: 1px border + 11px padding on each
         // side leaves an exactly 36px column so the w-9 (36px) icon items center.
         collapsed
@@ -329,7 +346,7 @@ export function DashboardSidebar({
         {/* Workspace switcher / collapse control */}
         <div
           className={cx(
-            "flex w-full transition-[gap] duration-300 ease-in-out",
+            navMotion.timing, "flex w-full transition-[gap]",
             collapsed
               ? "flex-col-reverse items-start justify-center gap-2.5"
               : "flex-row items-center justify-between",
@@ -341,6 +358,7 @@ export function DashboardSidebar({
               pill's 8px reach and pull it back with a negative margin, so the
               widths below are 16px larger than the footprint they produce. */}
           <div
+            inert={mobile && flat && searchActive}
             className={cx(
               "-m-2 min-w-0 overflow-hidden p-2 transition-[max-width,opacity,transform] duration-300 ease-in-out",
               mobile && flat && searchActive
@@ -385,12 +403,14 @@ export function DashboardSidebar({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Escape") {
+                  if (event.key === "Escape" && !event.nativeEvent.isComposing) {
                     event.preventDefault();
+                    event.stopPropagation();
                     deactivateSearch(true);
                   }
                 }}
                 placeholder="搜索…"
+                aria-hidden={!searchActive}
                 tabIndex={searchActive ? 0 : -1}
                 className={cx(
                   "min-w-0 bg-transparent text-body-medium tracking-[-0.015em] text-text-primary outline-none placeholder:text-text-tertiary",
@@ -403,6 +423,8 @@ export function DashboardSidebar({
               <CloseButton
                 size="2xs"
                 aria-label="清除导航搜索"
+                disabled={!searchActive}
+                aria-hidden={!searchActive}
                 onClick={() => deactivateSearch(true)}
                 className={cx(
                   "shrink-0 bg-background-tertiary-hover transition-opacity duration-150",
@@ -431,12 +453,12 @@ export function DashboardSidebar({
                 setSuppressUserHover(isExpanding);
               }}
               className={cx(
-                "cursor-pointer text-foreground-icon-secondary transition-transform duration-300 ease-in-out",
+                navMotion.timing, "cursor-pointer text-foreground-icon-secondary transition-transform",
                 collapsed && "flex w-9 items-center justify-center",
               )}
             >
               <RiSideBarFill
-                className={cx("size-5 transition-transform duration-300 ease-in-out", collapsed ? "rtl:-scale-x-100" : "-scale-x-100 rtl:scale-x-100")}
+                className={cx(navMotion.timing, "size-5 transition-transform", collapsed ? "rtl:-scale-x-100" : "-scale-x-100 rtl:scale-x-100")}
                 aria-hidden
               />
             </button>
@@ -458,8 +480,9 @@ export function DashboardSidebar({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Escape") {
+                  if (event.key === "Escape" && !event.nativeEvent.isComposing) {
                     event.preventDefault();
+                    event.stopPropagation();
                     deactivateSearch(true);
                   }
                 }}
@@ -482,7 +505,7 @@ export function DashboardSidebar({
               onClick={activateSearch}
               className={cx(
                 "flex cursor-pointer items-center gap-2 p-2 hover:bg-background-tertiary-hover/55",
-                "transition-[width,border-radius,background-color] duration-300 ease-in-out",
+                navMotion.timing, "transition-[width,border-radius,background-color]",
                 collapsed
                   ? "w-9 rounded-full bg-background-tertiary-default"
                   : "w-full rounded-full bg-background-tertiary-default",
@@ -513,6 +536,7 @@ export function DashboardSidebar({
               selected={selected}
               collapsed={collapsed}
               secondaryMatch={secondaryMatch}
+              onNavigate={mobile ? onClose : undefined}
             />
           </nav>
         </div>

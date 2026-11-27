@@ -47,6 +47,8 @@ import {
 } from "@remixicon/react";
 
 import { Avatar } from "../../base/avatar/avatar";
+import { WorkspaceTeamAvatar } from "../../workspace/brand";
+import { teamName } from "../../workspace/identity";
 import { Chip } from "../../base/badges/chip";
 import { Breadcrumb, BreadcrumbItem } from "../../base/breadcrumb/breadcrumb";
 import { Button } from "../../base/buttons/button";
@@ -213,6 +215,7 @@ function SortableTicket({ ticket, columnId, onOpen }: { ticket: ProjectTicket; c
       className={cx("shrink-0 touch-manipulation rounded-xl outline-none focus-visible:ring-[2.5px] focus-visible:ring-border-button-hover", isDragging && "opacity-20")}
       {...attributes}
       {...listeners}
+      data-ticket-id={ticket.id}
       aria-label={`打开 ${ticket.code}：${ticket.title}`}
       aria-haspopup="dialog"
       onClick={(event) => { event.currentTarget.focus(); onOpen(ticket.id); }}
@@ -368,8 +371,8 @@ function ProjectBoardHeader({
     <header className="flex w-full shrink-0 flex-col gap-2 sm:gap-0">
       <Breadcrumb>
         <BreadcrumbItem href="/">
-          <Avatar size="xs" color="blue" initials="B" />
-          LUOKUI-AI 团队
+          <WorkspaceTeamAvatar size="xs" />
+          {teamName}
         </BreadcrumbItem>
         <BreadcrumbItem href="/">
           <Avatar size="xs" color="neutral" initials="M" />
@@ -443,6 +446,17 @@ export function ProjectBoard({ onMenuClick }: { onMenuClick?: () => void } = {})
   const [createModal, setCreateModal] = useState({ open: false, session: 0, columnId: undefined as string | undefined });
 
   const [detail, setDetail] = useState({ id: null as string | null, open: false, session: 0 });
+  const restoreDetailFocus = useCallback((dialog: HTMLElement | null) => {
+    if (dialog || !detail.id) return;
+    const ticketId = detail.id;
+    requestAnimationFrame(() => {
+      const board = boardRef.current;
+      if (!board?.isConnected || document.activeElement !== document.body) return;
+      // Moving an open ticket to another column replaces its original focus target.
+      const card = board.querySelector<HTMLElement>(`[data-ticket-id="${window.CSS.escape(ticketId)}"]`);
+      (card ?? board).focus({ preventScroll: true });
+    });
+  }, [detail.id]);
   useEffect(() => {
     const openLinkedTicket = () => {
       const id = new URLSearchParams(window.location.hash.slice(1)).get("ticket");
@@ -642,6 +656,7 @@ export function ProjectBoard({ onMenuClick }: { onMenuClick?: () => void } = {})
       {detailTicket && detailColumn && <TicketDetailModal
         key={`${detail.id}-${detail.session}`}
         isOpen={detail.open}
+        dialogRef={restoreDetailFocus}
         ticket={detailTicket}
         column={detailColumn}
         columns={columns}

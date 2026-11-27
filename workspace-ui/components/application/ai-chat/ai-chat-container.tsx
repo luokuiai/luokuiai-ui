@@ -971,10 +971,12 @@ export type AiChatScenario = "landing-page-design" | "image-generation" | "codin
  *  line. Follows the newest message with a smooth scroll. */
 function Thread({
   scenario,
+  animateOnEntry,
   onImageGenerated,
   onWorkingChange,
 }: {
   scenario: AiChatScenario;
+  animateOnEntry: boolean;
   onImageGenerated?: () => void;
   /** True while the coding scenario's agent progress is running — the
    *  container lights the composer up for the duration. */
@@ -1061,9 +1063,11 @@ function Thread({
       // overflows and the container starts scrolling).
       className="flex min-h-0 w-full flex-1 flex-col justify-end gap-3 overflow-y-auto px-4 pt-4 [scrollbar-width:thin]"
     >
-      {messages.slice(0, visibleCount).map((message) => (
-        <div key={message.id}>{message.node}</div>
-      ))}
+      <AnimatePresence initial={animateOnEntry}>
+        {messages.slice(0, visibleCount).map((message) => (
+          <div key={message.id}>{message.node}</div>
+        ))}
+      </AnimatePresence>
     </div>
   ));
 }
@@ -1073,12 +1077,15 @@ function Thread({
 export function AiChatContainer({
   className,
   scenario = "landing-page-design",
+  animateOnEntry = false,
   onImageGenerated,
   mobileHeader,
   composer,
 }: {
   className?: string;
   scenario?: AiChatScenario;
+  /** Replay the first turn when the user switches to a different example thread. */
+  animateOnEntry?: boolean;
   mobileHeader?: ReactNode;
   /** Fires when the image-generation thread finishes rendering its image,
    *  so the shell can add it to the gallery panel. */
@@ -1133,6 +1140,7 @@ export function AiChatContainer({
       <Thread
         key={scenario}
         scenario={scenario}
+        animateOnEntry={animateOnEntry}
         onImageGenerated={onImageGenerated}
         onWorkingChange={setAgentWorking}
       />

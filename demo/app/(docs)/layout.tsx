@@ -13,7 +13,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
   return <>
     <header className="docs-header">
       <Link href="/" className="docs-brand"><img src="/luokui-ai-logo.png" alt="" width={26} height={26} /> LUOKUI UI</Link>
-      <nav aria-label="主要导航"><Link href="/">组件文档</Link><Link href="/examples">交互示例</Link></nav>
+      <nav aria-label="主要导航"><Link href="/">组件文档</Link><Link href="/examples">交互示例</Link><Link href="/workspace">桌面工作台</Link></nav>
       <ThemeToggle appearance="segmented" size="small" />
     </header>
     <div className="docs-layout"><Navigation sections={sections} /><main className="docs-content">{children}</main></div>

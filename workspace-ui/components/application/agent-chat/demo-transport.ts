@@ -6,14 +6,20 @@ import { pickDemoAnswer } from "./demo-answers";
 const THINK_MS = 700;
 /** Per word. Slightly faster than a model, since there is nothing to wait for. */
 const WORD_MS = 28;
+const words = new Intl.Segmenter("zh-CN", { granularity: "word" });
 
 const wait = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener("abort", () => {
+    signal?.throwIfAborted();
+    const abort = () => {
       clearTimeout(timer);
       reject(new DOMException("Aborted", "AbortError"));
-    });
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", abort, { once: true });
   });
 
 function lastUserText(messages: UIMessage[]): string {
@@ -49,10 +55,9 @@ export class DemoTransport implements ChatTransport<UIMessage> {
           controller.enqueue({ type: "start-step" });
           await wait(THINK_MS, abortSignal);
           controller.enqueue({ type: "text-start", id });
-          const words = reply.split(/(?<=\s)/);
-          for (const word of words) {
+          for (const { segment } of words.segment(reply)) {
             await wait(WORD_MS, abortSignal);
-            controller.enqueue({ type: "text-delta", id, delta: word });
+            controller.enqueue({ type: "text-delta", id, delta: segment });
           }
           controller.enqueue({ type: "text-end", id });
           controller.enqueue({ type: "finish-step" });

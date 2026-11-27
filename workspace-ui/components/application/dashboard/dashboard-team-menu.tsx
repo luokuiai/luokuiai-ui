@@ -1,6 +1,7 @@
 "use client";
 
-import workspaceLogo from "../../workspace/workspace-logo.png";
+import { WorkspaceTeamAvatar } from "../../workspace/brand";
+import { teamName } from "../../workspace/identity";
 
 import { useTemplateCopy, useTemplateLanguageSelector } from "../../foundations/template-copy/template-copy";
 
@@ -26,10 +27,10 @@ import {
   Popover as AriaPopover,
 } from "react-aria-components";
 import { ThemeToggle } from "../theme/theme-toggle";
-import { Avatar } from "../../base/avatar/avatar";
 import { Counter } from "../../base/badges/counter";
 import { ChevronDownSmall } from "../../foundations/icons/chevrons";
 import { cx } from "../../../utils/cx";
+import navMotion from "../../../styles/sidebar-motion.module.css";
 
 /**
  * Figma source: Board UI → sidebar profile menu (node 3823:3699).
@@ -97,7 +98,7 @@ function Collapsible({ collapsed, children }: { collapsed: boolean; children: Re
   return localize((
     <span
       className={cx(
-        "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter] duration-300 ease-in-out",
+        navMotion.timing, "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter]",
         collapsed ? "max-w-0 opacity-0 blur-[3px]" : "max-w-40 opacity-100 blur-0",
       )}
     >
@@ -166,11 +167,11 @@ export function DashboardTeamMenu({
   return localize((
     <AriaDialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
       <AriaButton
-        aria-label="LUOKUI-AI 团队"
+        aria-label={teamName}
         className={cx(
           "flex cursor-pointer items-center overflow-hidden outline-none",
           "border-2 border-transparent hover:border-border-button-hover",
-          "transition-[width,background-color,border-color,padding] duration-300 ease-in-out",
+          navMotion.timing, "transition-[width,background-color,border-color,padding]",
           "focus-visible:ring-2 focus-visible:ring-border-focus-ring focus-visible:ring-offset-2",
           collapsed
             ? "size-9 justify-start rounded-full bg-transparent p-0"
@@ -179,10 +180,10 @@ export function DashboardTeamMenu({
         )}
       >
         <span className="flex min-w-0 items-center gap-2">
-          <Avatar size="md" color="blue" src={workspaceLogo.src} alt="LUOKUI-AI 团队" />
+          <WorkspaceTeamAvatar />
           <Collapsible collapsed={collapsed}>
             <span className="flex min-w-0 flex-col items-start justify-center">
-              <span className="text-body-medium whitespace-nowrap text-text-primary">LUOKUI-AI 团队</span>
+              <span className="text-body-medium whitespace-nowrap text-text-primary">{teamName}</span>
               <span className="text-body-regular whitespace-nowrap text-text-secondary">本地工作区</span>
             </span>
           </Collapsible>
@@ -207,12 +208,12 @@ export function DashboardTeamMenu({
           "data-[exiting]:opacity-0 data-[exiting]:scale-95 data-[exiting]:blur-[2px]",
         )}
       >
-        <AriaDialog aria-label="LUOKUI-AI 团队菜单" className="flex flex-col gap-[7px] outline-none">
+        <AriaDialog aria-label={`${teamName}菜单`} className="flex flex-col gap-[7px] outline-none">
           {/* Header */}
           <div className="flex w-full items-center gap-2 px-2 pt-1">
-            <Avatar size="md" color="blue" src={workspaceLogo.src} alt="LUOKUI-AI 团队" />
+            <WorkspaceTeamAvatar />
             <div className="flex min-w-0 flex-col items-start justify-center">
-              <span className="text-body-medium whitespace-nowrap text-text-primary">LUOKUI-AI 团队</span>
+              <span className="text-body-medium whitespace-nowrap text-text-primary">{teamName}</span>
               <span className="text-body-regular whitespace-nowrap text-text-secondary">本地工作区</span>
             </div>
           </div>

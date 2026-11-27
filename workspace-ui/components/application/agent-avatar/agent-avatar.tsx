@@ -223,8 +223,14 @@ export function AgentAvatar({ config, size = 64, paused = false, label = "代理
       }
       frame = requestAnimationFrame(tick);
     };
+    const syncClock = () => {
+      cancelAnimationFrame(frame);
+      last = 0;
+      if (visible && !document.hidden && !paused && !reduced.matches && config.motion > 0) {
+        frame = requestAnimationFrame(tick);
+      }
+    };
     const start = () => {
-      cancelAnimationFrame(frame); last = 0;
       if (reduced.matches || config.motion === 0) {
         entrance.current.elapsed = ENTRANCE_SECONDS;
         working.current.elapsed = workingDuration;
@@ -238,12 +244,23 @@ export function AgentAvatar({ config, size = 64, paused = false, label = "代理
         if (!paused || config.lookAt !== "wander") gaze.current = gazeAngles(appearance, phase.current, target, wander.current?.point);
       }
       draw();
-      if (!paused && !reduced.matches && config.motion > 0) frame = requestAnimationFrame(tick);
+      syncClock();
     };
-    const observer = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; });
+    const observer = new IntersectionObserver(([entry]) => {
+      if (visible === entry.isIntersecting) return;
+      visible = entry.isIntersecting;
+      syncClock();
+    });
     observer.observe(canvas);
-    reduced.addEventListener("change", start); start();
-    return () => { cancelAnimationFrame(frame); observer.disconnect(); reduced.removeEventListener("change", start); };
+    document.addEventListener("visibilitychange", syncClock);
+    reduced.addEventListener("change", start);
+    start();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", syncClock);
+      reduced.removeEventListener("change", start);
+    };
   }, [config, size, paused, entranceKey, workingKey, workingCycles]);
   return <canvas ref={ref} role="img" aria-label={label} style={{ width: size, height: size, maxWidth: "100%", objectFit: "contain" }} />;
 }

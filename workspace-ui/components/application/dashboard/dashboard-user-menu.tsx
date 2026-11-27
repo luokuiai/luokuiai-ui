@@ -15,6 +15,7 @@ import { Avatar } from "../../base/avatar/avatar";
 import { Button } from "../../base/buttons/button";
 import { ChevronUpDownSmall } from "../../foundations/icons/chevrons";
 import { cx } from "../../../utils/cx";
+import navMotion from "../../../styles/sidebar-motion.module.css";
 
 /**
  * Figma source: Board UI → sidebar account menu (node 3828:3895).
@@ -50,7 +51,7 @@ function Collapsible({ collapsed, children }: { collapsed: boolean; children: Re
   return localize((
     <span
       className={cx(
-        "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter] duration-300 ease-in-out",
+        navMotion.timing, "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter]",
         collapsed ? "max-w-0 opacity-0 blur-[3px]" : "max-w-40 opacity-100 blur-0",
       )}
     >

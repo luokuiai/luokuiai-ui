@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { IntentLink as Link } from "../intent-link";
 import { useState, type FormEvent } from "react";
 import { RiAddLine, RiArrowRightUpLine, RiDownloadLine, RiPlayLine, RiSearchLine, RiSettings3Line } from "@remixicon/react";
 import { AreaChartCard } from "../../application/charts/area-chart-card";

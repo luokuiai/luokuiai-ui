@@ -5,3 +5,5 @@
 页面从 `@luokui/ui` 导入组件。`npm run setup --workspace luokui-ui-demo` 复制组件库资源，并使用 TypeScript 从安装包读取可导出的模块、属性与类型。API 数据和公共图片会在 `dev` 和 `build` 前重新生成。
 
 交互示例位于 `app/previews.tsx`，应用组件实验室复用原组件。对话示例提供无模型配置响应，可以进入本地演示模式。
+
+打开 <http://127.0.0.1:3214/workspace> 试用桌面标题栏、紧凑导航、会话设置和代码或图像右栏。该入口使用组件库公开的 `@luokui/ui/desktop`，会话数据保存在当前浏览器。

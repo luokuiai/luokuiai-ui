@@ -115,7 +115,7 @@ export function RainbowGlossArt() {
     <span aria-hidden className="absolute inset-0 overflow-hidden rounded-full">
       <Image
         src="/accent-rainbow-well-light.png"
-        loading="eager"
+        loading="lazy"
         alt=""
         fill
         // 128px, not the cell's 26px: the landing showpiece scales the pill
@@ -125,7 +125,7 @@ export function RainbowGlossArt() {
       />
       <Image
         src="/accent-rainbow-well-dark.png"
-        loading="eager"
+        loading="lazy"
         alt=""
         fill
         // 128px, not the cell's 26px: the landing showpiece scales the pill

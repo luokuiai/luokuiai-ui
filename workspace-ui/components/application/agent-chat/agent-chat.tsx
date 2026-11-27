@@ -8,12 +8,14 @@ import { RiCloseLine, RiMenuLine } from "@remixicon/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 
 import { Button } from "../../base/buttons/button";
+import { CloseButton } from "../../base/buttons/close-button";
 import { DemoTransport, SwitchingTransport } from "./demo-transport";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { AgentChatActions } from "./agent-chat-actions";
 import {
   AgentChatHistory,
+  type AgentChatAccountOptions,
   type ChatThreadSummary,
 } from "./agent-chat-history";
 import { AgentMessage } from "./agent-chat-message";
@@ -22,8 +24,12 @@ import { AgentThinking } from "../agent-thinking/agent-thinking";
 import { starterNav, useStarterBase } from "../app-shell/app-shell";
 import { ProOfferCard } from "../app-shell/pro-offer-card";
 import { DashboardSidebar } from "../dashboard/dashboard-sidebar";
+import { MobileNavigationDrawer, SlidingMobilePanel } from "../dashboard/mobile-navigation";
 import { IconButton } from "../../base/buttons/icon-button";
+import { RightSidebarButton, RightSidebarControl } from "../../workspace/right-sidebar-control";
+import navMotion from "../../../styles/sidebar-motion.module.css";
 import { cx } from "../../../utils/cx";
+import historyStyles from "./history-panel.module.css";
 
 /**
  * A working chat app, wired to the `/api/chat` runtime.
@@ -40,6 +46,7 @@ import { cx } from "../../../utils/cx";
  * touching the backend.
  */
 
+const MemoizedAgentMessage = memo(AgentMessage);
 const ENDPOINT = "/api/chat";
 const STORAGE_KEY = "luokui-ai:agent-chat-threads";
 /** Remembered so a reload of a keyless deploy lands back in the demo, not on the notice. */
@@ -71,16 +78,50 @@ type Probe = {
 export function AgentChat({
   className,
   contained = false,
-}: {
+  demoOnly = false,
+  onLogout,
+  settingsHref,
+}: AgentChatAccountOptions & {
   className?: string;
   /** Docs preview mode: fill the preview frame's height instead of the
    *  viewport, and keep the phone nav drawer inside the frame. */
   contained?: boolean;
+  demoOnly?: boolean;
 }) {
   const localize = useTemplateCopy();
-  const [probe, setProbe] = useState<Probe>({ status: "checking", provider: null, label: null, model: null });
-  const [input, setInput] = useState("");
+  const [probe, setProbe] = useState<Probe>({ status: demoOnly ? "unconfigured" : "checking", provider: null, label: null, model: null });
+  const composerForm = useRef<HTMLFormElement>(null);
   const [navOpen, setNavOpen] = useState(false);
+  const historyId = useId();
+  const historyTrigger = useRef<HTMLButtonElement>(null);
+  const chatRegion = useRef<HTMLDivElement>(null);
+  const [canDockHistory, setCanDockHistory] = useState<boolean | null>(null);
+  const [dockedHistoryOpen, setDockedHistoryOpen] = useState(true);
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+  const [animateHistory, setAnimateHistory] = useState(false);
+
+  // Measure the space *beside* global navigation; its collapsed state and
+  // Electron zoom can both change the space available without a window resize.
+  useLayoutEffect(() => {
+    const region = chatRegion.current;
+    if (!region) return;
+    let previousMode: boolean | undefined;
+    function resize(width: number) {
+      const canDock = width >= 720;
+      if (canDock === previousMode) return;
+      if (previousMode && document.getElementById(historyId)?.contains(document.activeElement)) {
+        historyTrigger.current?.focus({ preventScroll: true });
+      }
+      previousMode = canDock;
+      setAnimateHistory(false);
+      setCanDockHistory(canDock);
+      if (canDock) setHistoryDrawerOpen(false);
+    }
+    resize(region.clientWidth);
+    const observer = new ResizeObserver(([entry]) => resize(entry.contentRect.width));
+    observer.observe(region);
+    return () => observer.disconnect();
+  }, [historyId]);
   // The sidebar links only to pages the starter has; see app-shell.
   const navItems = starterNav(useStarterBase());
   const [threads, setThreads] = useState<StoredThread[]>([]);
@@ -92,7 +133,9 @@ export function AgentChat({
   /** Set when the open thread is renamed. Without it the derived title
    *  (built from the first message) would immediately overwrite the name. */
   const [activeTitle, setActiveTitle] = useState<string | null>(null);
+  const [activeUnread, setActiveUnread] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const followLatest = useRef(true);
   const titleRef = useRef<HTMLSpanElement>(null);
   const columnRef = useRef<HTMLDivElement>(null);
   /** When each message arrived, for the hover timestamp. */
@@ -110,7 +153,7 @@ export function AgentChat({
 
   // Demo mode: the visitor skipped the key notice. Only meaningful while the
   // runtime reports no key; the moment a key exists, the real route answers.
-  const [demo, setDemo] = useState(false);
+  const [demo, setDemo] = useState(demoOnly);
   const demoActive = demo && probe.status === "unconfigured";
   const [transport] = useState(
     () => new SwitchingTransport(new DefaultChatTransport({ api: ENDPOINT }), new DemoTransport()),
@@ -118,11 +161,11 @@ export function AgentChat({
   useEffect(() => {
     try {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring from localStorage after mount; there is no render-time source for it
-      setDemo(readWorkspaceStorage(DEMO_KEY) === "on");
+      setDemo(demoOnly || readWorkspaceStorage(DEMO_KEY) === "on");
     } catch {
       // Storage can be blocked; the notice simply shows again.
     }
-  }, []);
+  }, [demoOnly]);
   const enterDemo = () => {
     setDemo(true);
     try {
@@ -152,8 +195,8 @@ export function AgentChat({
   }, [messages]);
   const showThinking = busy && streamedText.length === 0;
 
-  /** The open chat as plain text, for the share control. */
-  const transcript = useMemo(
+  /** Serialize on share, so streaming a token doesn't rebuild the entire transcript. */
+  const getTranscript = useCallback(
     () =>
       messages
         .map((message) => `${message.role === "user" ? "你" : "Assistant"}: ${messageText(message)}`)
@@ -165,6 +208,7 @@ export function AgentChat({
   // Ask the runtime what it has before the first message, so a deployment with
   // no key renders setup steps instead of letting someone type into a dead box.
   useEffect(() => {
+    if (demoOnly) return;
     let cancelled = false;
     fetch(ENDPOINT, { method: "GET" })
       .then((res) => (res.ok ? res.json() : null))
@@ -189,7 +233,7 @@ export function AgentChat({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [demoOnly]);
 
   // Restore history, then open on a fresh thread rather than reviving the last
   // one — landing mid-conversation after a reload is more surprising than
@@ -214,11 +258,12 @@ export function AgentChat({
             id: activeId,
             title: activeTitle ?? deriveTitle(messages),
             updatedAt: activeUpdatedAt,
+            unread: activeUnread,
             messages,
             messageAt,
           }
         : null,
-    [activeId, messages, activeUpdatedAt, messageAt, activeTitle],
+    [activeId, messages, activeUpdatedAt, messageAt, activeTitle, activeUnread],
   );
 
   // Ordered by last message, never by what is open: selecting a thread must
@@ -266,16 +311,19 @@ export function AgentChat({
     return () => observer.disconnect();
   }, [messages.length, activeId]);
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, busy]);
+  useLayoutEffect(() => {
+    const viewport = scrollRef.current;
+    if (viewport && followLatest.current) viewport.scrollTop = viewport.scrollHeight;
+  }, [messages, busy, activeId]);
 
   const submit = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
+    followLatest.current = true;
+    setActiveUnread(false);
     setActiveUpdatedAt(Date.now());
     sendMessage({ text: trimmed }, { body: { demo: demoActive } });
-    setInput("");
+    composerForm.current?.reset();
   };
 
   /** Folds the thread being left back into the stored list before switching.
@@ -291,12 +339,14 @@ export function AgentChat({
   const startNewChat = useCallback(() => {
     if (busy) return;
     keepLiveThread();
+    followLatest.current = true;
+    setActiveUnread(false);
     setActiveId(newThreadId());
     setActiveUpdatedAt(0);
     setActiveTitle(null);
     setMessageAt({});
     setMessages([]);
-    setInput("");
+    composerForm.current?.reset();
   }, [busy, keepLiveThread, setMessages]);
 
   const renameThread = useCallback(
@@ -310,10 +360,14 @@ export function AgentChat({
   );
 
   const toggleUnread = useCallback((id: string) => {
+    if (id === activeId) {
+      setActiveUnread(unread => !unread);
+      return;
+    }
     setThreads((prev) =>
       prev.map((thread) => (thread.id === id ? { ...thread, unread: !thread.unread } : thread)),
     );
-  }, []);
+  }, [activeId]);
 
   const deleteThread = useCallback(
     (id: string) => {
@@ -322,12 +376,14 @@ export function AgentChat({
       // Deleting the thread you are reading leaves nothing to read, so the
       // pane opens a fresh one rather than showing a transcript with no row.
       if (id === activeId) {
+        followLatest.current = true;
+        setActiveUnread(false);
         setActiveId(newThreadId());
         setActiveUpdatedAt(0);
         setActiveTitle(null);
         setMessageAt({});
         setMessages([]);
-        setInput("");
+        composerForm.current?.reset();
       }
     },
     [threads, activeId, setMessages],
@@ -354,55 +410,89 @@ export function AgentChat({
 
   const selectThread = useCallback(
     (id: string) => {
-      if (busy || id === activeId) return;
+      if (busy) return;
+      if (id === activeId) {
+        setActiveUnread(false);
+        return;
+      }
       const thread = allThreads.find((candidate) => candidate.id === id);
       if (!thread) return;
       keepLiveThread();
       // Reading a chat is what marks it read again.
       if (thread.unread) toggleUnread(id);
+      followLatest.current = true;
+      setActiveUnread(false);
       setActiveId(id);
       setActiveUpdatedAt(thread.updatedAt);
       setActiveTitle(thread.title);
       setMessageAt(thread.messageAt ?? {});
       setMessages(thread.messages);
-      setInput("");
+      composerForm.current?.reset();
     },
     [busy, activeId, allThreads, keepLiveThread, toggleUnread, setMessages],
   );
 
+  const historyOpen = canDockHistory ? dockedHistoryOpen : historyDrawerOpen;
+  function setHistoryOpen(open: boolean) {
+    setAnimateHistory(true);
+    if (canDockHistory) {
+      if (!open && document.getElementById(historyId)?.contains(document.activeElement)) {
+        historyTrigger.current?.focus({ preventScroll: true });
+      }
+      setDockedHistoryOpen(open);
+    } else {
+      setHistoryDrawerOpen(open);
+    }
+  }
+  const historyLabel = historyOpen ? "收起会话历史" : "打开会话历史";
+  const historyToggle = (
+    <RightSidebarButton
+      ref={historyTrigger}
+      data-chat-history-toggle
+      label={historyLabel}
+      expanded={historyOpen}
+      controls={historyId}
+      aria-haspopup={canDockHistory ? undefined : "dialog"}
+      onClick={() => setHistoryOpen(!historyOpen)}
+    />
+  );
+  const historyPanel = (
+    <AgentChatHistory
+      threads={allThreads}
+      activeId={activeId}
+      onSelect={(id) => { selectThread(id); setHistoryDrawerOpen(false); }}
+      onNewChat={() => { startNewChat(); setHistoryDrawerOpen(false); }}
+      onRename={renameThread}
+      onToggleUnread={toggleUnread}
+      onDelete={deleteThread}
+      onExport={exportThreads}
+      onLogout={onLogout}
+      settingsHref={settingsHref}
+      disabled={busy}
+      className={canDockHistory !== false
+        ? historyStyles.dockCard
+        : "h-auto min-h-0 w-full flex-1 rounded-none bg-transparent"}
+    />
+  );
+
   return localize((
     <div
+      data-agent-chat-workspace
+      data-history-motion={animateHistory || undefined}
       className={cx(
-        "relative flex w-full gap-4 overflow-hidden bg-background-full p-3",
+        historyStyles.workspace, "group/chat-workspace relative flex w-full gap-4 overflow-hidden bg-background-full p-3",
         contained ? "h-[var(--template-preview-height)]" : "h-dvh",
         className,
       )}
     >
       <DashboardSidebar items={navItems} selected="chat" showThemeToggle={!contained} className="hidden lg:flex" />
 
-      {/* Below lg the sidebar rides in as an overlay drawer. The Pro template
-          pushes the workspace across instead; this is the plain version. */}
-      {navOpen && (
-        <div className={cx(contained ? "absolute" : "fixed", "inset-0 z-50 flex lg:hidden")}>
-          <button
-            type="button"
-            aria-label="关闭导航"
-            onClick={() => setNavOpen(false)}
-            className="absolute inset-0 cursor-pointer bg-black/40"
-          />
-          <div className="relative flex h-full p-3">
-            <DashboardSidebar
-              mobile
-              items={navItems}
-              selected="chat" showThemeToggle={!contained}
-              onClose={() => setNavOpen(false)}
-              className="flex"
-            />
-          </div>
-        </div>
-      )}
+      <MobileNavigationDrawer isOpen={navOpen} onOpenChange={setNavOpen}>
+        <DashboardSidebar mobile items={navItems} selected="chat" showThemeToggle={!contained}
+          onClose={() => setNavOpen(false)} className="flex" />
+      </MobileNavigationDrawer>
 
-      <div className="relative flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden">
+      <div ref={chatRegion} className="@container relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-3xl bg-background-secondary-default">
             <header
               className={cx(
@@ -429,6 +519,8 @@ export function AgentChat({
                 icon={navOpen ? RiCloseLine : RiMenuLine}
                 size="small"
                 aria-label="打开导航"
+                aria-expanded={navOpen}
+                aria-haspopup="dialog"
                 onClick={() => setNavOpen((open) => !open)}
                 className="lg:hidden"
               />
@@ -441,12 +533,14 @@ export function AgentChat({
 
               <AgentChatActions
                 className="ms-auto"
-                transcript={transcript}
+                getTranscript={getTranscript}
+                unread={activeUnread}
                 onExport={exportThreads}
                 onToggleUnread={() => toggleUnread(activeId)}
                 onDelete={() => deleteThread(activeId)}
-                disabled={messages.length === 0}
+                disabled={messages.length === 0 || busy}
               />
+              <RightSidebarControl>{historyToggle}</RightSidebarControl>
             </header>
 
             {probe.status === "unconfigured" && messages.length === 0 && !demo ? (
@@ -455,8 +549,11 @@ export function AgentChat({
               <>
                 <div
                   ref={scrollRef}
-                  onScroll={(event) => setScrolledUnder(event.currentTarget.scrollTop > 0)}
-                  className="min-h-0 flex-1 overflow-y-auto scroll-smooth"
+                  onScroll={({ currentTarget: view }) => {
+                    followLatest.current = view.scrollHeight - view.clientHeight - view.scrollTop < 48;
+                    setScrolledUnder(view.scrollTop > 0);
+                  }}
+                  className="min-h-0 flex-1 overflow-y-auto"
                 >
                   <div
                     ref={columnRef}
@@ -471,7 +568,7 @@ export function AgentChat({
                       <EmptyState onPick={submit} demo={demoActive} />
                     ) : (
                       messages.map((message, index) => (
-                        <AgentMessage
+                        <MemoizedAgentMessage
                           key={message.id}
                           role={message.role}
                           text={messageText(message)}
@@ -496,9 +593,8 @@ export function AgentChat({
                 <div className="shrink-0 px-3 pb-3">
                   <div className="mx-auto w-full max-w-3xl">
                     <AgentComposer
-                      value={input}
-                      onValueChange={setInput}
-                      onSubmit={() => submit(input)}
+                      formRef={composerForm}
+                      onSubmit={submit}
                       onStop={stop}
                       busy={busy}
                       model={probe.model}
@@ -511,21 +607,49 @@ export function AgentChat({
             )}
         </div>
 
-        {(probe.status !== "unconfigured" || messages.length > 0 || demo) && (
-            <AgentChatHistory
-              threads={allThreads}
-              activeId={activeId}
-              onSelect={selectThread}
-              onNewChat={startNewChat}
-              onRename={renameThread}
-              onToggleUnread={toggleUnread}
-              onDelete={deleteThread}
-              onExport={exportThreads}
-            disabled={busy}
-            className="hidden xl:flex"
-          />
+        {canDockHistory !== false && (
+          <div id={historyId} data-open={dockedHistoryOpen || undefined} data-measured={canDockHistory || undefined}
+            aria-hidden={!dockedHistoryOpen} inert={!dockedHistoryOpen}
+            className={cx(navMotion.dockWidth, historyStyles.dock, "h-full shrink-0 overflow-clip")}>
+            {historyPanel}
+          </div>
         )}
       </div>
+      {canDockHistory === false && (
+        <SlidingMobilePanel
+          id={historyId}
+          label="会话历史"
+          breakpoint={null}
+          isOpen={historyDrawerOpen}
+          onOpenChange={setHistoryOpen}
+          returnFocusRef={historyTrigger}
+          className={cx(
+            "@container absolute inset-0 z-50 flex justify-end p-2 sm:p-3",
+            // An isolated component preview keeps its trigger in its local chat header.
+            "group-has-[[data-chat-history-toggle]]/chat-workspace:top-[60px]",
+            !historyDrawerOpen && "pointer-events-none",
+          )}
+        >
+          <button
+            type="button" tabIndex={-1} aria-hidden
+            onClick={() => setHistoryOpen(false)}
+            className={cx(navMotion.fadeVisibility, "absolute inset-0 bg-black/40",
+              !historyDrawerOpen && "invisible opacity-0")}
+          />
+          <div className={cx(
+            navMotion.dockWidth, "relative h-full min-w-0 overflow-clip",
+            historyDrawerOpen ? "w-[min(320px,100%)]" : "invisible w-0",
+          )}>
+            <div className="flex h-full w-[min(320px,100cqi)] flex-col gap-4 overflow-clip rounded-3xl border border-separator-border bg-background-full py-6 shadow-xs">
+              <div className="flex shrink-0 items-start gap-3 px-6">
+                <h2 className="min-w-0 flex-1 text-title-3-medium text-text-primary">会话历史</h2>
+                <CloseButton size="sm" aria-label="关闭会话历史" onClick={() => setHistoryOpen(false)} className="-me-1 shrink-0" />
+              </div>
+              {historyPanel}
+            </div>
+          </div>
+        </SlidingMobilePanel>
+      )}
       {/* Fixed to the viewport, so not inside the docs preview frame. */}
       {!contained && <ProOfferCard />}
     </div>

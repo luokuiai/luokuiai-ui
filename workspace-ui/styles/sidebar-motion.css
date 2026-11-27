@@ -1,0 +1,16 @@
+/* Shared by renderer sidebars and the Electron B+C window shell. */
+:root {
+  --sidebar-motion-duration: 280ms;
+  --sidebar-motion-ease: ease-in-out;
+}
+
+/* Portalled overlays set their own direction. Let the closest boundary
+   determine the sign, including when its language and direction differ. */
+[dir="ltr"] { --sidebar-inline-sign: 1; }
+[dir="rtl"] { --sidebar-inline-sign: -1; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --sidebar-motion-duration: 0ms;
+  }
+}

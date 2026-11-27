@@ -1,9 +1,10 @@
 "use client";
 
+import { SlidingMobilePanel } from "../dashboard/mobile-navigation";
+
 import { useTemplateCopy } from "../../foundations/template-copy/template-copy";
-import { useDirection } from "../../foundations/direction/direction";
 import { useState } from "react";
-import { motion } from "motion/react";
+import navMotion from "../../../styles/sidebar-motion.module.css";
 
 import { starterNav } from "../app-shell/app-shell";
 import { DashboardSidebar } from "../dashboard/dashboard-sidebar";
@@ -22,7 +23,6 @@ import { ProjectBoard } from "./project-board";
  */
 export function ProjectBoardShell({ contained = false }: { contained?: boolean } = {}) {
   const localize = useTemplateCopy();
-  const direction = useDirection();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return localize((
@@ -42,19 +42,18 @@ export function ProjectBoardShell({ contained = false }: { contained?: boolean }
         <DashboardSidebar selected="project-board" items={starterNav("")} showThemeToggle={false} />
       </div>
 
-      <div
+      <SlidingMobilePanel
         className={cx(
           "start-0 z-10 flex w-[272px] py-3 ps-[6px] lg:hidden",
           contained ? "absolute top-0 h-[var(--template-preview-height)]" : "fixed inset-y-0",
         )}
-        aria-hidden={!mobileOpen}
+        isOpen={mobileOpen}
+        onOpenChange={setMobileOpen}
       >
-        <motion.div
-          initial={false}
-          animate={{ scale: mobileOpen ? 1 : 0.94, opacity: mobileOpen ? 1 : 0 }}
-          transition={{ duration: 0.325, ease: [0.42, 0, 0.58, 1] }}
+        <div
+          data-nav-open={mobileOpen || undefined}
           className={cx(
-            "h-full w-[260px] origin-left rtl:origin-right will-change-transform",
+            navMotion.pushSidebar, "h-full w-[260px] origin-left rtl:origin-right",
             mobileOpen ? "pointer-events-auto" : "pointer-events-none",
           )}
         >
@@ -64,30 +63,27 @@ export function ProjectBoardShell({ contained = false }: { contained?: boolean }
             selected="project-board" items={starterNav("")} showThemeToggle={false}
             onClose={() => setMobileOpen(false)}
           />
-        </motion.div>
-      </div>
+        </div>
+      </SlidingMobilePanel>
 
-      <motion.main
-        initial={false}
-        animate={{ x: mobileOpen ? (direction === "rtl" ? -272 : 272) : 0, borderRadius: mobileOpen ? 32 : 0 }}
-        transition={{ duration: 0.325, ease: [0.42, 0, 0.58, 1] }}
-        className="relative z-20 flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background-full p-3 will-change-transform sm:px-6 sm:pt-6 sm:pb-[22px] lg:z-0 lg:!transform-none lg:!rounded-none lg:pe-7"
+      <main
+        data-nav-open={mobileOpen || undefined}
+        className={cx(navMotion.pushContent, "relative z-20 flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background-full p-3 sm:px-6 sm:pt-6 sm:pb-[22px] lg:z-0 lg:pe-7")}
       >
-        <motion.button
+        <button
           type="button"
           aria-label="关闭导航"
-          tabIndex={mobileOpen ? 0 : -1}
+          tabIndex={-1}
+          aria-hidden={!mobileOpen}
           onClick={() => setMobileOpen(false)}
-          initial={false}
-          animate={{ opacity: mobileOpen ? 1 : 0 }}
-          transition={{ duration: 0.325, ease: [0.42, 0, 0.58, 1] }}
+          data-nav-open={mobileOpen || undefined}
           className={cx(
-            "absolute inset-0 z-50 cursor-pointer rounded-[inherit] bg-black/10 dark:bg-white/5 lg:hidden",
+            navMotion.pushBackdrop, "absolute inset-0 z-50 cursor-pointer rounded-[inherit] bg-black/10 dark:bg-white/5 lg:hidden",
             mobileOpen ? "pointer-events-auto" : "pointer-events-none",
           )}
         />
         <ProjectBoard onMenuClick={() => setMobileOpen(true)} />
-      </motion.main>
+      </main>
     </div>
   ));
 }

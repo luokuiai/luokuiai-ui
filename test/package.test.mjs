@@ -9,7 +9,7 @@ import { copyAssets } from '../scripts/copy-assets.mjs'
 test('package entry points expose original source modules and built styles', async () => {
   const cssFile = fileURLToPath(import.meta.resolve('@luokui/ui/styles.css'))
   const css = await readFile(cssFile, 'utf8')
-  for (const rule of ['--color-background-full', '.dark', '.button-press-motion', 'Inter Variable']) {
+  for (const rule of ['--color-background-full', '.dark', '.button-press-motion', 'Inter Variable', '--sidebar-motion-duration', '.sidebar-tool-button']) {
     assert.ok(css.includes(rule), rule)
   }
   for (const url of css.matchAll(/url\(["']?(\.\/files\/[^)'"\s]+)/g)) {
@@ -20,11 +20,14 @@ test('package entry points expose original source modules and built styles', asy
     'application/charts/area-chart-card.tsx',
     'application/project-board/ticket-detail-modal.module.css',
     'foundations/direction/direction.tsx',
-    'workspace/chrome.tsx'
+    'workspace/chrome.tsx',
+    'workspace/desktop-shell.tsx',
+    'application/multi-agent-chat/group-settings.tsx',
+    'base/command-palette/command-palette.tsx'
   ]) {
     await access(new URL(import.meta.resolve(`@luokui/ui/components/${path}`)))
   }
-  for (const name of ['chat', 'chat-bisheng.css', 'dashboard', 'presentation', 'activity-heatmap', 'activity-heatmap.css']) {
+  for (const name of ['desktop', 'sidebar-motion.module.css', 'chat', 'chat-bisheng.css', 'dashboard', 'presentation', 'activity-heatmap', 'activity-heatmap.css']) {
     await access(new URL(import.meta.resolve(`@luokui/ui/${name}`)))
   }
 })

@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
 @import "./theme.css";
 @import "./typography.css";
+@import "./sidebar-motion.css";
 
 /* ---------------------------------------------------------------------------
  * Dark mode strategy
@@ -20,6 +21,53 @@
  * Tailwind's ancestor-based defaults also match inside an opposing region. */
 @custom-variant rtl (&:dir(rtl));
 @custom-variant ltr (&:dir(ltr));
+
+/* Contextual sidebar switches and the macOS navigation switch share their hit
+   area and interaction states. Keep the keyboard hint inside the window. */
+.sidebar-tool-button {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 29px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-foreground-icon-secondary);
+  box-shadow: none;
+  cursor: pointer;
+}
+.sidebar-tool-button:hover {
+  background-color: var(--color-background-secondary-hover);
+}
+.sidebar-tool-button:focus-visible {
+  outline: 2px solid var(--color-border-focus-ring);
+  outline-offset: 2px;
+}
+.sidebar-tool-button:focus-visible::after {
+  content: attr(aria-label);
+  position: absolute;
+  z-index: 1;
+  inset-block-start: calc(100% + 5px);
+  inset-inline-start: 0;
+  width: max-content;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: var(--color-text-primary);
+  color: var(--color-background-full);
+  font-size: 11px;
+  line-height: 15px;
+  font-weight: 500;
+  pointer-events: none;
+}
+[data-workspace-right-sidebar-toggle]:focus-visible::after {
+  inset-inline: auto 0;
+}
+[data-workspace-right-sidebar-toggle]:dir(ltr) svg {
+  scale: -1 1;
+}
 
 /* The next theme is revealed by ThemeToggle from the exact interaction point.
  * Native view-transition crossfades are disabled so only the soft circular

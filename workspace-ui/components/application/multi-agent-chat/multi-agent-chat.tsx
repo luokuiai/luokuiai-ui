@@ -6,22 +6,26 @@ import { useTemplateCopy } from "../../foundations/template-copy/template-copy";
 import { useDirection } from "../../foundations/direction/direction";
 import { LiquidGlassChip, LIQUID_GLASS_RESET } from "../landing/liquid-glass";
 
-import { useCallback, useEffect, useReducer, useRef, useState, useSyncExternalStore, type ReactNode, type Ref } from "react";
+import { useCallback, useEffect, useId, useReducer, useRef, useState, useSyncExternalStore, type ReactNode, type Ref } from "react";
 import { Dialog, Heading, Modal, ModalOverlay } from "react-aria-components";
-import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { RiAddLine, RiCheckLine, RiCustomerService2Line, RiEditLine, RiFileCopyLine, RiGroupLine, RiMenuLine, RiMoreFill, RiPushpinLine, RiSearchLine, RiSettings3Line, RiShare2Line, RiStore2Line, RiThumbDownLine, RiThumbUpLine } from "@remixicon/react";
 import { AgentAvatar } from "../agent-avatar/agent-avatar";
 import { StreamedText } from "../agent-chat/agent-chat-message";
 import { FOLD_CONFIG } from "../agent-avatar/model";
 import { ComposerPanel } from "../composer-panel/composer-panel";
 import { DashboardTeamMenu } from "../dashboard/dashboard-team-menu";
+import { focusNavigationDialog, SlidingMobilePanel } from "../dashboard/mobile-navigation";
+import navMotion from "../../../styles/sidebar-motion.module.css";
 import { Button } from "../../base/buttons/button";
 import { CloseButton } from "../../base/buttons/close-button";
 import { IconButton } from "../../base/buttons/icon-button";
 import { Dropdown, DropdownGroup, DropdownItem, DropdownPopover, DropdownTrigger } from "../../base/dropdown/dropdown";
 import { Input } from "../../base/input/input";
 import { cx } from "../../../utils/cx";
+import { RightSidebarButton, RightSidebarControl } from "../../workspace/right-sidebar-control";
 import { AgentEditor } from "./agent-editor";
+import { GroupSettings } from "./group-settings";
 import { ChatContextMenu, type ChatMenuTarget } from "./chat-context-menu";
 import { FirstMessageHandoff, REPLY_ARRIVAL_MS, type FirstMessageHandoffState } from "./first-message-handoff";
 import { captureGroupAvatars, GroupAvatarHandoff, type AvatarHandoff } from "./group-avatar-handoff";
@@ -37,18 +41,17 @@ const subscribeCompact = (listener: () => void) => { const m = window.matchMedia
 const compactSnapshot = () => window.matchMedia("(max-width: 1099px)").matches;
 const serverSnapshot = () => false;
 const MotionModalOverlay = motion.create(ModalOverlay);
-const MotionModal = motion.create(Modal);
-const editorEase = [0.22, 1, 0.36, 1] as const;
+const avatarEase = [0.22, 1, 0.36, 1] as const;
 const NEW_BOT_AVATAR = { ...FOLD_CONFIG, hue: 254, saturation: 66 };
 const focusClass = "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring";
 
-type Editor = { draft: Agent; original: Agent | null };
+type EditorSelection = { chatId: string; agentId: string };
 export type MultiAgentChatProps = {
   /** Optional host integration. Without it, this template returns labeled sample replies. */
   onRespond?: (agent: Agent, messages: Message[], signal: AbortSignal) => Promise<string>;
   /** Starting content for embedded previews or a host-provided workspace. */
   initialWorkspace?: Workspace;
-  /** Open an agent’s editor initially; null starts with the conversation alone. */
+  /** By default the rail shows settings for the active agent or group. Pass null to start closed. */
   defaultEditorId?: string | null;
   /** Pass null to disable browser persistence. */
   storageKey?: string | null;
@@ -78,7 +81,7 @@ function SelectedAgentPreview({ agents, showCaption = true, previewRef, hiddenAv
           const y = count === 1 ? 16 : count <= 3 ? (count === 3 && index === 2 ? 46 : 8) : 32 + Math.sin(angle) * 30;
           return <motion.div key={agent.id} data-group-avatar={agent.id} className="absolute left-0 top-0" aria-hidden style={{ visibility: hiddenAvatars.includes(agent.id) ? "hidden" : undefined }}
             initial={{ opacity: 0, scale: .5, x, y: y + 16 }} animate={{ opacity: 1, scale: 1, x, y }} exit={{ opacity: 0, scale: .5, y: y + 12 }}
-            transition={{ duration: reduced ? 0 : .3, ease: editorEase }}>
+            transition={{ duration: reduced ? 0 : .3, ease: avatarEase }}>
             <AgentAvatar config={agent.avatar} size={avatarSize} />
           </motion.div>;
         })}
@@ -102,26 +105,16 @@ function DialogShell({ title, children, preview, footer, wide, leaving = false, 
 }
 
 
-/** Animate the full occupied width, including the gutter, so the chat never jumps. */
-function EditorRail({ children }: { children: ReactNode }) {
-  const localize = useTemplateCopy();
-  const direction = useDirection();
-  const present = useIsPresent();
-  const reduced = useReducedMotion();
-  const transition = { duration: reduced ? 0 : .36, ease: editorEase };
-  return localize(<motion.div initial={{ width: 0 }} animate={{ width: 356 }} exit={{ width: 0 }} transition={transition}
-    aria-hidden={!present || undefined} inert={!present} className="min-h-0 shrink-0 overflow-hidden">
-    <motion.div initial={{ opacity: 0, x: direction === "rtl" ? -20 : 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: direction === "rtl" ? -20 : 20 }} transition={transition} className="h-full w-[356px] ps-4">
-      {children}
-    </motion.div>
-  </motion.div>);
-}
-
-export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-chat:v1", initialWorkspace = INITIAL_WORKSPACE, defaultEditorId = "security" }: MultiAgentChatProps) {
+export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-chat:v1", initialWorkspace = INITIAL_WORKSPACE, defaultEditorId }: MultiAgentChatProps) {
   const localize = useTemplateCopy();
   const direction = useDirection();
   const [workspace, update] = useReducer((state: Workspace, action: Workspace | ((s: Workspace) => Workspace)) => typeof action === "function" ? action(state) : action, initialWorkspace);
-  const [editor, setEditor] = useState<Editor | null>(() => { const agent = initialWorkspace.agents.find(a => a.id === defaultEditorId); return agent ? { draft: agent, original: agent } : null; });
+  const [editorSelection, setEditorSelection] = useState<EditorSelection | null>(() =>
+    defaultEditorId ? { chatId: initialWorkspace.activeId, agentId: defaultEditorId } : null);
+  const [editorRailOpen, setEditorRailOpen] = useState(defaultEditorId !== null);
+  const [editorDrawerOpen, setEditorDrawerOpen] = useState(false);
+  const editorToggle = useRef<HTMLButtonElement>(null);
+  const editorId = useId();
   const [mobileNav, setMobileNav] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -165,13 +158,28 @@ export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-
   const jobs = useRef(new Map<string, AbortController>());
   const reducedMotion = useReducedMotion();
   const compact = useSyncExternalStore(subscribeCompact, compactSnapshot, serverSnapshot);
+  const panelId = editorId + (compact ? "-drawer" : "-rail");
   const chat: Conversation = workspace.chats.find(c => c.id === workspace.activeId) ?? workspace.chats[0] ?? { id: "draft-chat", title: "", agentIds: [workspace.agents[0].id], messages: [] };
   const contextChat = chatMenu && workspace.chats.find(c => c.id === chatMenu.id);
   const participants = chat.agentIds.flatMap(id => workspace.agents.find(agent => agent.id === id) ?? []);
+  const isGroup = participants.length > 1;
+  const selectedAgent = editorSelection?.chatId === chat.id
+    ? workspace.agents.find(agent => agent.id === editorSelection.agentId) : undefined;
+  const editorAgent = selectedAgent ?? (isGroup ? undefined : participants[0]);
+  const showGroup = isGroup && !editorAgent;
+  const panelLabel = showGroup ? "群聊设置" : "代理编辑器";
+  const editorVisible = (showGroup || !!editorAgent) && (compact ? editorDrawerOpen && !dialog && !mobileNav : editorRailOpen);
 
   useEffect(() => {
     if (storageKey) {
-      try { const raw = readWorkspaceStorage(storageKey); const restored = raw && restoreWorkspace(raw); if (restored) { update(restored); const agent = restored.agents.find(a => a.id === defaultEditorId); setEditor(agent ? { draft: agent, original: agent } : null); } } catch { /* Storage may be unavailable in private embeds. */ }
+      try {
+        const raw = readWorkspaceStorage(storageKey);
+        const restored = raw && restoreWorkspace(raw);
+        if (restored) {
+          update(restored);
+          setEditorSelection(defaultEditorId ? { chatId: restored.activeId, agentId: defaultEditorId } : null);
+        }
+      } catch { /* Storage may be unavailable in private embeds. */ }
     }
     const item = new URL(window.location.href).searchParams.get("marketplace");
     if (item && MARKETPLACE_ITEMS.some(entry => entry.id === item)) { setMarketplaceItem(item); setDialog("marketplace"); }
@@ -183,7 +191,23 @@ export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(""), 3500); return () => clearTimeout(timer); }, [notice]);
   useEffect(() => { const el = scrollRef.current; if (el) el.scrollTop = el.scrollHeight; }, [chat.id]);
 
-  function edit(agent: Agent) { setEditor({ draft: structuredClone(agent), original: agent }); setDialog(null); setMobileNav(false); setMore(false); }
+  function openSettings(agent?: Agent) {
+    setEditorSelection(agent ? { chatId: chat.id, agentId: agent.id } : null);
+    setEditorRailOpen(true);
+    setEditorDrawerOpen(true);
+    setDialog(null);
+    setMobileNav(false);
+    setMore(false);
+  }
+  function switchGroupView(member?: Agent) {
+    openSettings(member);
+    requestAnimationFrame(() => {
+      const panel = document.getElementById(panelId);
+      const selector = member ? "[data-group-back]" : `[data-member-id="${CSS.escape(editorAgent?.id ?? "")}"]`;
+      const target = panel?.querySelector<HTMLButtonElement>(selector) ?? panel?.querySelector<HTMLButtonElement>("button");
+      target?.focus({ preventScroll: true });
+    });
+  }
   function closeSearch() {
     setSearchOpen(false); setQuery("");
     requestAnimationFrame(() => searchButtonRef.current?.focus());
@@ -193,12 +217,24 @@ export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-
     const agent: Agent = { id: crypto.randomUUID(), ...nextAgentIdentity(workspace.agents), label: "", description: "" };
     const created = conversationFor([agent], [agent.id], crypto.randomUUID());
     update(s => ({ ...s, agents: [...s.agents, agent], chats: [created, ...s.chats], activeId: created.id }));
-    setEditor({ draft: agent, original: agent });
+    setEditorSelection(null);
+    setEditorRailOpen(true);
+    setEditorDrawerOpen(true);
     setMenu(false); setDialog(null); setMobileNav(false);
   }
-  function closeEditor() { setEditor(null); }
+  function closeEditor() {
+    setEditorDrawerOpen(false);
+    if (!compact) setEditorRailOpen(false);
+  }
+  function toggleEditor() {
+    if (editorVisible) {
+      closeEditor();
+      return;
+    }
+    setEditorRailOpen(true);
+    if (compact) setEditorDrawerOpen(true);
+  }
   function changeAgent(draft: Agent) {
-    setEditor({ draft, original: draft });
     const agent = { ...draft, name: draft.name.trim() || "New bot" };
     update(s => {
       const previous = s.agents.find(a => a.id === agent.id);
@@ -206,15 +242,26 @@ export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-
     });
   }
   function openChatPicker(ids: string[] = [], chatId: string | null = null) { setSendHandoff(null); setHandoff(null); setPickerLeaving(false); setEditingChatId(chatId); setSelected(ids); setDialog("newchat"); setMenu(false); setMore(false); setMobileNav(false); }
-  function startChat(ids: string[]) {
+  function renameChat(target: Conversation) {
+    const singleAgent = target.agentIds.length === 1 && workspace.agents.find(a => a.id === target.agentIds[0]);
+    setRenamingChat({ id: target.id, name: target.customTitle || (singleAgent ? singleAgent.name : target.title) });
+    setDialog("renamechat");
+    setMobileNav(false);
+  }
+  function togglePin(id: string) {
+    update(s => ({ ...s, chats: s.chats.map(c => c.id === id ? { ...c, pinned: !c.pinned } : c) }));
+  }
+  function startChat(ids: string[], groupToEdit?: string | null) {
     if (!ids.length) return;
-    if (editingChatId) {
-      jobs.current.get(editingChatId)?.abort(); jobs.current.delete(editingChatId); clearGeneration(editingChatId);
-      update(s => ({ ...updateConversationAgents(s, editingChatId, ids), activeId: editingChatId }));
+    if (groupToEdit) {
+      jobs.current.get(groupToEdit)?.abort(); jobs.current.delete(groupToEdit); clearGeneration(groupToEdit);
+      setEditorSelection(null);
+      update(s => ({ ...updateConversationAgents(s, groupToEdit, ids), activeId: groupToEdit }));
       setDialog(null); setEditingChatId(null);
       return;
     }
     if (pickerLeaving) return;
+    setEditorSelection(null);
     const created = conversationFor(workspace.agents, ids, crypto.randomUUID());
     const avatars = dialog === "newchat" && ids.length > 1 && !reducedMotion ? captureGroupAvatars(pickerPreviewRef.current) : [];
     if (avatars.length) {
@@ -230,6 +277,7 @@ export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-
   }
   function removeChat(id: string) {
     jobs.current.get(id)?.abort(); jobs.current.delete(id); clearGeneration(id);
+    if (id === chat.id) setEditorSelection(null);
     update(s => removeConversation(s, id));
     setDrafts(s => { const next = { ...s }; delete next[id]; return next; });
     setNotice("Chat removed");
@@ -336,7 +384,12 @@ export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-
         return <button key={c.id} type="button" aria-haspopup="menu" aria-expanded={chatMenu?.id === c.id}
           onContextMenu={event => { event.preventDefault(); setMenu(false); setMore(false); setChatMenu({ id: c.id, x: event.clientX, y: event.clientY, trigger: event.currentTarget }); }}
           onKeyDown={event => { if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) { event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect(); setChatMenu({ id: c.id, x: rect.left + 24, y: rect.bottom, trigger: event.currentTarget }); } }}
-          aria-current={chat.id === c.id ? "page" : undefined} onClick={() => { setSendHandoff(null); setHandoff(null); update(s => ({ ...s, activeId: c.id })); setMobileNav(false); }}
+          aria-current={chat.id === c.id ? "page" : undefined} onClick={() => {
+            setSendHandoff(null); setHandoff(null);
+            setEditorSelection(null);
+            update(s => ({ ...s, activeId: c.id }));
+            setMobileNav(false);
+          }}
           className={cx("flex h-[54px] shrink-0 items-center gap-2.5 rounded-xl p-1.5 text-start", focusClass, chat.id === c.id ? "bg-background-tertiary-default" : "hover:bg-background-secondary-hover")}>
           <AgentStack agents={agents} /><span className="flex min-w-0 flex-1 flex-col gap-0.5"><span className="truncate text-body-medium text-text-primary">{c.customTitle || (agents.length === 1 ? agents[0].name : c.title)}</span><span className="truncate text-body-regular text-text-tertiary">{pending[c.id] ? "正在协作思考…" : last ? last.text.split(/\n\s*\n/)[0] : "开始对话"}</span></span>{c.pinned && <RiPushpinLine aria-label="已置顶对话" className="me-1 size-3.5 shrink-0 text-foreground-icon-tertiary" />}
         </button>;
@@ -350,23 +403,45 @@ export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-
     </footer>
   </aside>;
 
-  const editorPanel = editor && <AgentEditor key={editor.draft.id} agent={editor.draft} onChange={changeAgent} onClose={closeEditor} />;
+  const closeDrawer = compact ? closeEditor : undefined;
+  const editorPanel = showGroup
+    ? <GroupSettings key={chat.id} chat={chat} members={participants} avatar={<AgentStack agents={participants} size={80} />}
+        onRename={() => renameChat(chat)} onManageMembers={() => openChatPicker(chat.agentIds, chat.id)}
+        onTogglePin={() => togglePin(chat.id)} onEditMember={switchGroupView} onClose={closeDrawer} />
+    : editorAgent && <AgentEditor key={editorAgent.id} agent={editorAgent} onChange={changeAgent}
+        onBack={isGroup ? () => switchGroupView() : undefined} onClose={closeDrawer} />;
 
-  return localize(<div className="workspace-multi-agent flex h-dvh min-h-0 overflow-hidden bg-background-full p-3 text-text-primary">
+  return localize(<div className="workspace-multi-agent relative flex h-dvh min-h-0 overflow-hidden bg-background-full p-3 text-text-primary">
     <div className="me-4 hidden min-h-0 shrink-0 md:block">{sidebar}</div>
     <main aria-label="代理对话" className="flex min-h-0 min-w-0 flex-1 flex-col rounded-3xl bg-background-secondary-default">
       <header className="flex h-[55px] shrink-0 items-start gap-2 px-3 pt-3">
+        <RightSidebarControl>
+          <RightSidebarButton
+            ref={editorToggle}
+            label={(editorVisible ? "收起" : "打开") + panelLabel}
+            expanded={editorVisible}
+            controls={editorVisible ? panelId : undefined}
+            aria-haspopup={compact ? "dialog" : undefined}
+            disabled={!!dialog || mobileNav}
+            onMouseDown={event => {
+              const focused = document.activeElement;
+              if (!compact && focused?.matches("input, textarea, [contenteditable=true]") && !document.getElementById(panelId)?.contains(focused)) {
+                event.preventDefault();
+              }
+            }}
+            onClick={toggleEditor}
+          />
+        </RightSidebarControl>
         <IconButton icon={RiMenuLine} aria-label="打开会话列表" size="small" className="-ms-2 border-0 bg-transparent shadow-none md:hidden" onClick={() => setMobileNav(true)} />
         <div className="flex min-w-0 flex-1">
           <LiquidGlassChip radius="full" className="relative z-40 min-w-0 max-w-full rounded-full">
-          <button ref={badgeRef} type="button" onClick={() => participants.length === 1 ? edit(participants[0]) : openChatPicker(chat.agentIds)} className={cx("flex h-[31px] min-w-0 max-w-full items-center gap-2 rounded-full px-2 pe-3 text-body-2-medium text-text-secondary", LIQUID_GLASS_RESET, focusClass)}>
-            <AgentStack agents={participants} size={20} /><span className="truncate">{participants.length === 1 ? participants[0].name : participants.slice(0, 3).map(agent => agent.label || agent.name).join(" + ")}</span>
-            {participants.length > 3 && <span className="shrink-0">+{participants.length - 3}</span>}
+          <button ref={badgeRef} type="button" onClick={() => openSettings(isGroup ? undefined : participants[0])} className={cx("flex h-[31px] min-w-0 max-w-full items-center gap-2 rounded-full px-2 pe-3 text-body-2-medium text-text-secondary", LIQUID_GLASS_RESET, focusClass)}>
+            <AgentStack agents={participants} size={20} /><span className="truncate">{isGroup ? chat.customTitle || chat.title : participants[0].name}</span>
           </button>
           </LiquidGlassChip>
         </div>
         <button type="button" aria-label="复制对话" title="复制对话" onClick={() => copy(chat.messages.map(m => `${m.role === "user" ? "你" : workspace.agents.find(a => a.id === m.agentId)?.name}: ${m.text}`).join("\n\n"), "已复制对话")} className={cx("rounded p-1 text-foreground-icon-secondary", focusClass)}><RiShare2Line className="size-4" /></button>
-        <Dropdown isOpen={more} onOpenChange={setMore}><DropdownTrigger aria-label="会话选项" className="rounded p-1 text-foreground-icon-secondary"><RiMoreFill className="size-4" /></DropdownTrigger><DropdownPopover aria-label="会话选项" placement="bottom end" className="rounded-[14px] p-1"><DropdownGroup label="本次对话">{participants.map(a => <DropdownItem key={a.id} onSelect={() => edit(a)} className="px-2 py-1.5 text-body-medium"><span className="size-5 shrink-0" aria-hidden><AgentAvatar config={a.avatar} size={20} /></span><span className="truncate">编辑 {a.name}</span></DropdownItem>)}<DropdownItem onSelect={() => openChatPicker(chat.agentIds)} className="px-2 py-1.5 text-body-medium"><RiGroupLine className="size-4" />开始群聊</DropdownItem></DropdownGroup></DropdownPopover></Dropdown>
+        <Dropdown isOpen={more} onOpenChange={setMore}><DropdownTrigger aria-label="会话选项" className="rounded p-1 text-foreground-icon-secondary"><RiMoreFill className="size-4" /></DropdownTrigger><DropdownPopover aria-label="会话选项" placement="bottom end" className="rounded-[14px] p-1"><DropdownGroup label="本次对话">{participants.map(a => <DropdownItem key={a.id} onSelect={() => openSettings(a)} className="px-2 py-1.5 text-body-medium"><span className="size-5 shrink-0" aria-hidden><AgentAvatar config={a.avatar} size={20} /></span><span className="truncate">编辑 {a.name}</span></DropdownItem>)}<DropdownItem onSelect={() => openChatPicker(chat.agentIds)} className="px-2 py-1.5 text-body-medium"><RiGroupLine className="size-4" />开始群聊</DropdownItem></DropdownGroup></DropdownPopover></Dropdown>
       </header>
       <ScrollSurface className="flex-1" contentClassName={chat.messages.length ? "pb-4 pt-2" : "flex items-center justify-center p-4"} scrollRef={scrollRef} chatId={chat.id} label="消息">
         {chat.messages.length === 0 && <div className="flex w-full flex-col items-center justify-center gap-4 px-4 py-8 text-center"><SelectedAgentPreview key={chat.id} agents={participants} showCaption={false} previewRef={chatPreviewRef} hiddenAvatars={handoff?.chatId === chat.id ? handoff.avatars.filter(avatar => !handoff.arrived.includes(avatar.id)).map(avatar => avatar.id) : []} /><div className="flex flex-col items-center gap-1.5"><h1 className="text-title-3-semibold">{participants.length > 1 ? "多个代理，一起讨论。" : `与${participants[0].name}打个招呼`}</h1><p className="max-w-[420px] text-body-regular text-text-secondary">{participants.length > 1 ? `${participants.map(a => a.name).join("、")}已加入。发送消息后，每个代理会给出自己的意见。` : participants[0].description}</p></div></div>}
@@ -376,7 +451,7 @@ export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-
           return message.role === "user" ? <div key={message.id} className="me-3 ms-auto mt-3 w-fit max-w-[min(520px,calc(100%-24px))] rounded-[var(--radius-2-5xl)] bg-background-primary-default p-3 text-start text-body-regular whitespace-pre-wrap break-words">{message.text}</div> : <article key={message.id} className="group/reply mx-3 mt-3 w-fit max-w-[min(520px,calc(100%-24px))] text-body-regular">
             {message.text && <div className="rounded-[var(--radius-2-5xl)] bg-background-tertiary-default p-3"><StreamedText text={formatDemoReply(message.text)} paragraphs /></div>}
             <div className="flex items-center justify-between gap-2 px-3">
-              {agent && <ReplyHeader agent={agent} thinking={thinking[chat.id]?.id === message.id} workingKey={pending[chat.id]} avatarRef={thinking[chat.id]?.id === message.id ? replyAvatarRef : undefined} arriving={sendHandoff?.chatId === chat.id && sendHandoff.responderId === agent.id && !sendHandoff.arrived.includes(agent.id)} onEdit={() => edit(agent)} />}
+              {agent && <ReplyHeader agent={agent} thinking={thinking[chat.id]?.id === message.id} workingKey={pending[chat.id]} avatarRef={thinking[chat.id]?.id === message.id ? replyAvatarRef : undefined} arriving={sendHandoff?.chatId === chat.id && sendHandoff.responderId === agent.id && !sendHandoff.arrived.includes(agent.id)} onEdit={() => openSettings(agent)} />}
             {thinking[chat.id]?.id !== message.id && streaming[chat.id] !== message.id && <div className="mt-1 flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/reply:opacity-100 group-focus-within/reply:opacity-100" aria-label="消息操作">
               {(["up", "down"] as const).map(direction => { const Icon = direction === "up" ? RiThumbUpLine : RiThumbDownLine; return <button key={direction} type="button" aria-label={direction === "up" ? "有帮助" : "无帮助"} aria-pressed={feedback[message.id] === direction} onClick={() => setFeedback(s => ({ ...s, [message.id]: direction }))} className={cx("flex size-[22px] items-center justify-center rounded-md bg-background-tertiary-default", focusClass, feedback[message.id] === direction ? "text-accent-600" : "text-foreground-icon-tertiary")}><Icon className="size-3" /></button>; })}
               <button type="button" aria-label="复制回复" onClick={() => copy(formatDemoReply(message.text), "已复制回复")} className={cx("flex size-[22px] items-center justify-center rounded-md bg-background-tertiary-default text-foreground-icon-tertiary", focusClass)}><RiFileCopyLine className="size-3" /></button>
@@ -389,19 +464,40 @@ export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-
       {/* Concentric corners: 24px container − 4px inset = 20px composer. */}
       <div className="shrink-0 p-1"><ComposerPanel cardClassName="rounded-[var(--radius-2-5xl)]" value={drafts[chat.id] ?? ""} onValueChange={value => setDrafts(s => ({ ...s, [chat.id]: value }))} onSubmit={send} disabled={!!pending[chat.id]} placeholder="你好，今天需要什么帮助？" status={null} defaultPermission="bypass" defaultModel="anthropic/fable-5" /></div>
     </main>
-    <AnimatePresence initial={false}>
-      {editor && !compact && <EditorRail key="agent-editor">{editorPanel}</EditorRail>}
-    </AnimatePresence>
-    <AnimatePresence initial={false}>
-      {editor && compact && !dialog && !mobileNav && <MotionModalOverlay dir={direction} key="agent-editor-drawer" isOpen isDismissable onOpenChange={open => !open && closeEditor()}
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0 : .28, ease: editorEase }}
-        className="fixed inset-0 z-40 flex justify-end bg-background-secondary-default/70 backdrop-blur-sm">
-        <MotionModal initial={{ x: direction === "rtl" ? -32 : 32 }} animate={{ x: 0 }} exit={{ x: direction === "rtl" ? -32 : 32 }} transition={{ duration: reducedMotion ? 0 : .28, ease: editorEase }} className="h-full w-[356px] max-w-full bg-background-full p-2 outline-none">
-          <Dialog aria-label="编辑代理" className="h-full outline-none">{editorPanel}</Dialog>
-        </MotionModal>
-      </MotionModalOverlay>}
-    </AnimatePresence>
-    {mobileNav && <ModalOverlay dir={direction} isOpen isDismissable onOpenChange={setMobileNav} className="fixed inset-0 z-40 flex bg-background-secondary-default/70 p-3 backdrop-blur-sm"><Modal className="relative h-full outline-none"><Dialog aria-label="会话" className="h-full outline-none">{sidebar}<CloseButton aria-label="关闭会话列表" className="absolute -end-10 top-2" onClick={() => setMobileNav(false)} /></Dialog></Modal></ModalOverlay>}
+    <SlidingMobilePanel
+      id={panelId}
+      label={showGroup ? "群聊设置" : "编辑代理"}
+      isOpen={editorVisible}
+      docked={!compact}
+      returnFocusRef={editorToggle}
+      breakpoint={null}
+      onOpenChange={open => { if (!open && compactSnapshot()) closeEditor(); }}
+      className={compact
+        ? cx("absolute inset-0 z-40 @container", !editorVisible && "pointer-events-none")
+        : cx(navMotion.dockWidth, "hidden min-h-0 shrink-0 overflow-clip min-[1100px]:block",
+            editorVisible ? "w-[356px]" : "invisible w-0 pointer-events-none")}
+    >
+      {compact && <button type="button" tabIndex={-1} aria-hidden onClick={closeEditor}
+        className={cx(navMotion.fadeVisibility, "absolute inset-0 bg-background-secondary-default/70 backdrop-blur-sm",
+          !editorVisible && "invisible opacity-0")} />}
+      <div className={compact
+        ? cx(navMotion.dockWidth, "absolute inset-y-0 end-0 max-w-full overflow-clip bg-background-full",
+            editorVisible ? "w-[356px]" : "invisible w-0")
+        : "contents"}>
+        <div className={cx("h-full w-[356px]", compact ? "max-w-[100cqi] p-2" : "ps-4")}>
+          {editorPanel}
+        </div>
+      </div>
+    </SlidingMobilePanel>
+    <ModalOverlay dir={direction} isOpen={mobileNav} isDismissable onOpenChange={setMobileNav}
+      className={cx(navMotion.modalBackdrop, "fixed inset-0 z-40 flex bg-background-secondary-default/70 p-3 backdrop-blur-sm")}>
+      <Modal className={cx(navMotion.modalSidebar, "relative h-full outline-none")}>
+        <Dialog ref={focusNavigationDialog} aria-label="会话" className="h-full outline-none">
+          {sidebar}
+          <CloseButton aria-label="关闭会话列表" className="absolute -end-10 top-2" onClick={() => setMobileNav(false)} />
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
     <AnimatePresence>{(dialog === "marketplace" || dialog === "settings") && <Marketplace key="marketplace" defaultPage={dialog === "settings" ? "general" : "marketplace"} agents={workspace.agents} installedPlugins={workspace.installedPlugins ?? DEFAULT_PLUGINS} initialItem={marketplaceItem}
       onClose={() => setDialog(null)} onCopy={copy} onChat={id => startChat([id])}
       onAddBot={item => update(s => addMarketplaceBot(s, item))}
@@ -410,10 +506,10 @@ export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-
     {handoff && <GroupAvatarHandoff handoff={handoff} targetRef={chatPreviewRef} onArrive={arriveAvatar} onFinish={finishHandoff} />}
     {chatMenu && contextChat && <ChatContextMenu target={chatMenu} agents={contextChat.agentIds.flatMap(id => workspace.agents.find(agent => agent.id === id) ?? [])}
       onClose={() => setChatMenu(null)} pinned={contextChat.pinned}
-      onPin={() => update(s => ({ ...s, chats: s.chats.map(c => c.id === contextChat.id ? { ...c, pinned: !c.pinned } : c) }))}
-      onRename={() => { setRenamingChat({ id: contextChat.id, name: contextChat.customTitle || (contextChat.agentIds.length === 1 ? workspace.agents.find(a => a.id === contextChat.agentIds[0])!.name : contextChat.title) }); setDialog("renamechat"); setMobileNav(false); }}
+      onPin={() => togglePin(contextChat.id)}
+      onRename={() => renameChat(contextChat)}
       onCopyId={() => copy(contextChat.id, "已复制对话编号")}
-      onEdit={() => contextChat.agentIds.length > 1 ? openChatPicker(contextChat.agentIds, contextChat.id) : edit(workspace.agents.find(agent => agent.id === contextChat.agentIds[0])!)}
+      onEdit={() => contextChat.agentIds.length > 1 ? openChatPicker(contextChat.agentIds, contextChat.id) : openSettings(workspace.agents.find(agent => agent.id === contextChat.agentIds[0])!)}
       onCopy={() => copy(contextChat.messages.map(message => `${message.role === "user" ? "你" : workspace.agents.find(agent => agent.id === message.agentId)?.name}: ${message.text}`).join("\n\n"), "已复制对话")}
       onRemove={() => removeChat(contextChat.id)} />}
     {dialog === "renamechat" && renamingChat && <DialogShell title="重命名对话" onClose={() => { setDialog(null); setRenamingChat(null); }}
@@ -424,7 +520,7 @@ export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-
     </DialogShell>}
     {dialog === "newchat" && <DialogShell wide leaving={pickerLeaving} onExited={() => { setDialog(null); setPickerLeaving(false); }} title={editingChatId ? "编辑群聊" : "与代理对话"} onClose={() => setDialog(null)}
       preview={<SelectedAgentPreview agents={selected.flatMap(id => workspace.agents.find(a => a.id === id) ?? [])} previewRef={pickerPreviewRef} hiddenAvatars={pickerLeaving ? selected : []} />}
-      footer={<Button className="w-full rounded-full" disabled={pickerLeaving || !selected.length} onClick={() => startChat(selected)}>{editingChatId ? "保存更改" : "开始对话"}{selected.length ? ` · ${selected.length} 个代理` : ""}</Button>}>
+      footer={<Button className="w-full rounded-full" disabled={pickerLeaving || !selected.length} onClick={() => startChat(selected, editingChatId)}>{editingChatId ? "保存更改" : "开始对话"}{selected.length ? ` · ${selected.length} 个代理` : ""}</Button>}>
       <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="选择代理">
         {workspace.agents.map(a => {
           const picked = selected.includes(a.id);
@@ -437,7 +533,7 @@ export function MultiAgentChat({ onRespond, storageKey = "luokui-ai:multi-agent-
       </div>
     </DialogShell>}
 
-    {dialog === "library" && <DialogShell title="你的代理" onClose={() => setDialog(null)} footer={<Button leadingIcon={RiAddLine} onClick={createAgent} className="w-full">创建新代理</Button>}><div className="flex flex-col gap-2">{workspace.agents.map(a => <div key={a.id} className="flex items-center gap-2 rounded-xl bg-background-secondary-default p-2"><AgentAvatar config={a.avatar} size={40} label={a.name} /><button type="button" onClick={() => startChat([a.id])} className={cx("min-w-0 flex-1 rounded text-start", focusClass)}><span className="block truncate text-body-medium">{a.name}</span><span className="text-caption-1-regular text-text-secondary">{a.label}</span></button><IconButton icon={RiEditLine} aria-label={`编辑${a.name}`} size="small" className="border-0 bg-transparent shadow-none" onClick={() => edit(a)} /></div>)}</div></DialogShell>}
+    {dialog === "library" && <DialogShell title="你的代理" onClose={() => setDialog(null)} footer={<Button leadingIcon={RiAddLine} onClick={createAgent} className="w-full">创建新代理</Button>}><div className="flex flex-col gap-2">{workspace.agents.map(a => <div key={a.id} className="flex items-center gap-2 rounded-xl bg-background-secondary-default p-2"><AgentAvatar config={a.avatar} size={40} label={a.name} /><button type="button" onClick={() => startChat([a.id])} className={cx("min-w-0 flex-1 rounded text-start", focusClass)}><span className="block truncate text-body-medium">{a.name}</span><span className="text-caption-1-regular text-text-secondary">{a.label}</span></button><IconButton icon={RiEditLine} aria-label={`编辑${a.name}`} size="small" className="border-0 bg-transparent shadow-none" onClick={() => openSettings(a)} /></div>)}</div></DialogShell>}
 
     {dialog === "support" && <DialogShell title="使用帮助" onClose={() => setDialog(null)}><div className="space-y-4 text-body-regular text-text-secondary"><p>点击 <strong className="text-text-primary">+</strong> 即可创建代理或与多个代理发起对话。</p><p>打开 <strong className="text-text-primary">应用市场</strong> 即可探索插件和代理。在会话菜单中可以编辑代理形象和资料。通过表情转盘选择表情，滚动、拖动或使用方向键选择形状。</p><p>按回车发送，按 Shift + 回车换行。更改保存在当前浏览器。</p></div></DialogShell>}
 

@@ -1,0 +1,32 @@
+.workspace {
+  --sidebar-transition-duration: 0ms;
+}
+
+.workspace[data-history-motion] {
+  --sidebar-transition-duration: var(--sidebar-motion-duration);
+}
+
+/* Reserve the desktop split in the server-rendered layout, using the same
+   available workspace width that ResizeObserver reads after hydration. */
+.dock {
+  --history-width: clamp(216px, 28cqi, 260px);
+  width: 0;
+  visibility: hidden;
+}
+
+.dock[data-open] {
+  width: calc(var(--history-width) + 12px);
+  visibility: visible;
+}
+
+@container (width < 720px) {
+  .dock[data-open]:not([data-measured]) {
+    width: 0;
+    visibility: hidden;
+  }
+}
+
+.dockCard {
+  width: var(--history-width);
+  margin-inline-start: 12px;
+}

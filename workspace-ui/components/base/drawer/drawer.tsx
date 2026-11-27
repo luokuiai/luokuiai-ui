@@ -11,6 +11,7 @@ import {
   ModalTrigger,
 } from "../modal/modal";
 import { useDirection } from "../../foundations/direction/direction";
+import navMotion from "../../../styles/sidebar-motion.module.css";
 import { cx, sortCx } from "../../../utils/cx";
 
 /**
@@ -50,36 +51,18 @@ const styles = sortCx({
   overlay: "group/drawer fixed inset-x-0 top-0 z-100 flex h-(--visual-viewport-height) p-2 sm:p-3",
   backdrop: [
     "absolute inset-0 bg-black/40",
-    "transition-opacity duration-300 ease-out",
+    "transition-opacity",
     "group-data-[entering]/drawer:opacity-0 group-data-[exiting]/drawer:opacity-0",
   ].join(" "),
   modal: [
     "relative flex w-full flex-col outline-none",
-    "transform-gpu transition-[translate,filter,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
-    "motion-safe:data-[entering]:blur-[4px] motion-safe:data-[exiting]:blur-[4px]",
+    "transform-gpu transition-[translate,filter,opacity]",
     "motion-reduce:data-[entering]:opacity-0 motion-reduce:data-[exiting]:opacity-0",
   ].join(" "),
   dialog: "flex-1",
-  // Each panel starts 24px past its edge (the 12px inset plus its shadow),
-  // so no sliver of it shows before it moves. Literal per edge and direction
-  // so Tailwind can see every class.
   placement: {
-    end: {
-      overlay: "justify-end",
-      modal: [
-        "h-full",
-        "motion-safe:ltr:data-[entering]:translate-x-[calc(100%+24px)] motion-safe:ltr:data-[exiting]:translate-x-[calc(100%+24px)]",
-        "motion-safe:rtl:data-[entering]:-translate-x-[calc(100%+24px)] motion-safe:rtl:data-[exiting]:-translate-x-[calc(100%+24px)]",
-      ].join(" "),
-    },
-    start: {
-      overlay: "justify-start",
-      modal: [
-        "h-full",
-        "motion-safe:ltr:data-[entering]:-translate-x-[calc(100%+24px)] motion-safe:ltr:data-[exiting]:-translate-x-[calc(100%+24px)]",
-        "motion-safe:rtl:data-[entering]:translate-x-[calc(100%+24px)] motion-safe:rtl:data-[exiting]:translate-x-[calc(100%+24px)]",
-      ].join(" "),
-    },
+    end: { overlay: "justify-end", modal: cx("h-full", navMotion.modalSidebarEnd) },
+    start: { overlay: "justify-start", modal: cx("h-full", navMotion.modalSidebar) },
     bottom: {
       overlay: "items-end",
       modal: "max-h-[85%] motion-safe:data-[entering]:translate-y-[calc(100%+24px)] motion-safe:data-[exiting]:translate-y-[calc(100%+24px)]",
@@ -132,8 +115,10 @@ export function Drawer({
       isDismissable={isDismissable}
       className={cx(styles.overlay, edge.overlay, overlayClassName)}
     >
-      <div aria-hidden className={styles.backdrop} />
-      <AriaModal className={cx(styles.modal, edge.modal, side && styles.size[size])}>
+      <div aria-hidden className={cx(styles.backdrop, side ? navMotion.timing : "duration-300 ease-out")} />
+      <AriaModal className={cx(styles.modal, edge.modal, side
+        ? styles.size[size]
+        : "duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-safe:data-[entering]:blur-[4px] motion-safe:data-[exiting]:blur-[4px]")}>
         <ModalDialog aria-label={ariaLabel} className={cx(styles.dialog, className)}>
           {children}
         </ModalDialog>

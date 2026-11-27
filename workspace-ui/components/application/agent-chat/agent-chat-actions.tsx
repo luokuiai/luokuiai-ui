@@ -26,6 +26,8 @@ import { cx } from "../../../utils/cx";
 export interface AgentChatActionsProps {
   /** Plain-text transcript of the open chat, for share and copy. */
   transcript: string;
+  getTranscript?: () => string;
+  unread?: boolean;
   onExport: () => void;
   onToggleUnread: () => void;
   onDelete: () => void;
@@ -34,14 +36,22 @@ export interface AgentChatActionsProps {
   className?: string;
 }
 
+/** Streaming hosts can read the current text only when the share action runs. */
+export interface LiveAgentChatActionsProps extends Omit<AgentChatActionsProps, "transcript"> {
+  transcript?: never;
+  getTranscript: () => string;
+}
+
 export function AgentChatActions({
   transcript,
+  getTranscript,
+  unread,
   onExport,
   onToggleUnread,
   onDelete,
   disabled = false,
   className,
-}: AgentChatActionsProps) {
+}: AgentChatActionsProps | LiveAgentChatActionsProps) {
   const localize = useTemplateCopy();
   const [menuOpen, setMenuOpen] = useState(false);
   const [shared, setShared] = useState(false);
@@ -53,15 +63,16 @@ export function AgentChatActions({
   }, [shared]);
 
   const share = async () => {
-    if (!transcript) return;
+    const text = getTranscript?.() ?? transcript;
+    if (!text) return;
     // The Web Share sheet where the browser has one, the clipboard everywhere
     // else. Both leave the transcript on the device.
     try {
       if (navigator.share) {
-        await navigator.share({ text: transcript });
+        await navigator.share({ text });
         return;
       }
-      await navigator.clipboard.writeText(transcript);
+      await navigator.clipboard.writeText(text);
       setShared(true);
     } catch {
       // A dismissed share sheet and a refused clipboard both land here, and
@@ -113,7 +124,7 @@ export function AgentChatActions({
             </DropdownItem>
             <DropdownItem onSelect={choose(onToggleUnread)} className="px-2 py-1.5">
               <span className="truncate text-body-medium whitespace-nowrap text-text-primary">
-                标为未读
+                {unread ? "标为已读" : "标为未读"}
               </span>
             </DropdownItem>
             <DropdownItem onSelect={choose(onDelete)} className="px-2 py-1.5">
