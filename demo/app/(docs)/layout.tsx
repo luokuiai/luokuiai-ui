@@ -1,14 +1,16 @@
 import Link from 'next/link'
 import { ThemeToggle } from '@luokui/ui/components/application/theme/theme-toggle.tsx'
 import { groups, modules, moduleTitle } from '../catalog'
+import { componentName } from '../component-names'
 import Navigation from '../navigation'
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   const sections = Object.entries(groups).map(([group, label]) => ({
     label,
-    entries: modules.filter(item => item.id.startsWith(`${group}/`)).map(item => ({
-      id: item.id, title: moduleTitle(item), terms: `${item.id} ${item.exports.map(entry => entry.name).join(' ')}`.toLowerCase()
-    }))
+    entries: modules.filter(item => item.id.startsWith(`${group}/`)).map(item => {
+      const title = componentName(item.id) ?? moduleTitle(item)
+      return { id: item.id, title, terms: `${title} ${item.id} ${item.exports.map(entry => entry.name).join(' ')}`.toLowerCase() }
+    })
   }))
   return <>
     <header className="docs-header">
