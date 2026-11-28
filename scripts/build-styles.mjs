@@ -17,5 +17,5 @@ await cp(join(fontRoot, 'files'), 'dist/files', { recursive: true })
 await cp('workspace-ui/public/fonts', 'dist/files', { recursive: true })
 
 await mkdir('dist/integrations', { recursive: true })
-await Promise.all(['activity-heatmap.css', 'chat-bisheng.css'].map(file =>
+await Promise.all(['activity-heatmap.css', 'chat-bisheng.css', 'chat-composer.css'].map(file =>
   copyFile(join('workspace-ui/integrations', file), join('dist/integrations', file))))
