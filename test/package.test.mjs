@@ -27,7 +27,7 @@ test('package entry points expose original source modules and built styles', asy
   ]) {
     await access(new URL(import.meta.resolve(`@luokui/ui/components/${path}`)))
   }
-  for (const name of ['desktop', 'sidebar-motion.module.css', 'chat', 'chat-bisheng.css', 'dashboard', 'presentation', 'activity-heatmap', 'activity-heatmap.css']) {
+  for (const name of ['desktop', 'sidebar-motion.module.css', 'chat', 'chat-bisheng.css', 'chat-composer', 'chat-composer.css', 'dashboard', 'presentation', 'activity-heatmap', 'activity-heatmap.css']) {
     await access(new URL(import.meta.resolve(`@luokui/ui/${name}`)))
   }
 })

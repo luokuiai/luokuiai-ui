@@ -30,6 +30,11 @@
       "default": "./dist/integrations/chat.js"
     },
     "./chat-bisheng.css": "./dist/integrations/chat-bisheng.css",
+    "./chat-composer": {
+      "types": "./dist/integrations/chat-composer.d.ts",
+      "default": "./dist/integrations/chat-composer.js"
+    },
+    "./chat-composer.css": "./dist/integrations/chat-composer.css",
     "./activity-heatmap": {
       "types": "./dist/integrations/activity-heatmap.d.ts",
       "default": "./dist/integrations/activity-heatmap.js"

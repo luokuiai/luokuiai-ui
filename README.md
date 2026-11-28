@@ -2,6 +2,11 @@
 
 `@luokui/ui` 1.x 收录 `LUOKUI-AI/components` 的基础组件、应用组件、设计基础和工作台组件。组件按原模块导出，保留原有属性、泛型、受控和非受控接口、事件回调与样式。
 
+## 待发布变更
+
+- 新增 `@luokui/ui/chat-composer` 和 `@luokui/ui/chat-composer.css`，提供基于 AI 对话输入框的布局、可替换的模型选择与技能菜单、资源标签键盘操作，以及运行光带和回复等待动效。
+- 示例站「交互示例 → 公共聊天输入框」新增 AI 对话、图像生成、代码工作台和多代理协作四个调用示例。完整属性与调用说明见 [公共聊天输入框](docs/chat-composer.md)。
+
 ## 1.2.0 变更记录
 
 - 新增 `@luokui/ui/desktop`。用 `DesktopWorkspaceShell` 包住工作区页面即可试用 B+C 标题栏，展开显示业务侧栏，收起显示紧凑导航。Next.js 示例站的「桌面工作台」入口演示完整接线。

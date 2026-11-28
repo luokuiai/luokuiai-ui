@@ -83,3 +83,10 @@
   .docs-category-grid { grid-template-columns: 1fr; }
   .docs-header nav { display: none; }
 }
+.docs-composer-examples { display: grid; gap: 18px; }
+.docs-composer-examples > section { padding: 18px; border-radius: 18px; background: var(--color-background-secondary-default); }
+.docs-composer-examples > section > h2 { margin-block-start: 0; }
+.docs-composer-glow { block-size: 100%; }
+.docs-composer-skill { flex: none; }
+.docs-composer-skill > summary { cursor: pointer; list-style: none; padding: 4px 10px; border-radius: 999px; background: var(--color-background-tertiary-default); }
+.docs-composer-skill > div { position: absolute; z-index: 3; inset-inline-start: 8px; inset-block-end: calc(100% + 6px); }
